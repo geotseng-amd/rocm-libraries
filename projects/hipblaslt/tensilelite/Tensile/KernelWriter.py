@@ -3431,7 +3431,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     """
 
     if kernel["EnableMatrixInstruction"] and kernel["LocalReadVectorWidth"] >= kernel["MIInputPerThread"]:
-      WLR = max(kernel["LocalReadVectorWidth"]//kernel["MIInputPerThread"], 1)
+      WLR = max(max(kernel["LocalReadVectorWidth"]//kernel["MIInputPerThread"], 1), 1)
       self.states.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"]//WLR)
     else:
       self.states.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"])
@@ -4287,6 +4287,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if (residual % 2) == 0:
         # if 2-aligned bank(bank0 and bank2), move to bank1 or bank3.
         vgprIdx += 1
+      if kernel["ISA"][:2] == (12, 5):
+        vgprIdx = ((vgprIdx+1)//2)*2
     else:
       vgprIdx = ((vgprIdx+1)//2)*2
     self.states.b.startVgprValu  = vgprIdx

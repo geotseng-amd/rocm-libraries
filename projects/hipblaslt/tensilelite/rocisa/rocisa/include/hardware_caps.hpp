@@ -76,7 +76,8 @@ inline std::map<std::string, int>
     std::map<std::string, int> rv;
     rv["SupportedISA"] = tryAssembler(isaVersion, assemblerPath, "", isDebug);
     rv["HasExplicitCO"]
-        = tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc,v0,1", isDebug);
+        = tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc,v0,1", isDebug)
+        || tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc_lo,v0,1", isDebug);
     rv["HasExplicitNC"] = tryAssembler(isaVersion, assemblerPath, "v_add_nc_u32 v0,v0,1", isDebug);
 
     rv["HasDirectToLds"] = tryAssembler(isaVersion,
@@ -153,6 +154,10 @@ inline std::map<std::string, int>
                     || tryAssembler(isaVersion,
                                     assemblerPath,
                                     "v_wmma_f32_16x16x16_f16 v[0:3], v[8:9], v[16:17], v[0:3]",
+                                    isDebug)
+                    || tryAssembler(isaVersion,
+                                    assemblerPath,
+                                    "v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[8:15], v[0:7]",
                                     isDebug);
     rv["HasWMMA_V1"] = tryAssembler(isaVersion,
                                     assemblerPath,
@@ -161,6 +166,11 @@ inline std::map<std::string, int>
     rv["HasWMMA_V2"] = tryAssembler(isaVersion,
                                     assemblerPath,
                                     "v_wmma_f32_16x16x16_f16 v[0:3], v[8:9], v[16:17], v[0:3]",
+                                    isDebug);
+
+    rv["HasWMMA_V3"] = tryAssembler(isaVersion,
+                                    assemblerPath,
+                                    "v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[8:15], v[0:7]",
                                     isDebug);
 
     rv["v_mac_f16"] = tryAssembler(isaVersion, assemblerPath, "v_mac_f16 v47, v36, v34", isDebug);
