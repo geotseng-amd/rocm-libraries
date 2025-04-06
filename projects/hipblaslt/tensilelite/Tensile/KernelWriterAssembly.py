@@ -511,6 +511,17 @@ class KernelWriterAssembly(KernelWriter):
     # Must call setSgprToInUseState again before calling setSgprToFreeState.
     return ValueSet(name="sgpr"+name, value="UNDEF", format = -1)
 
+  def shiftSrd(self, tc) -> Module:
+    module = Module("shiftSrd")
+    if self.states.version[:2] == (12, 5):
+      with self.allocTmpSgpr(1) as stmpRes:
+        module.addComment("Shift num records for gfx125x")
+        module.add(SAndB32(sgpr(stmpRes.idx), sgpr("Srd%s+2"%tc), 0x7F))
+        module.add(SLShiftLeftB32(sgpr(stmpRes.idx), 25, sgpr(stmpRes.idx)))
+        module.add(SOrB32(sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), sgpr(stmpRes.idx)))
+        module.add(SLShiftRightB32(sgpr("Srd%s+2"%tc), 7, sgpr("Srd%s+2"%tc)))
+    return module
+
   def defineVariableSgprs(self, kernel):
     module = Module("DefineVariableSgpr")
     #------------------------
@@ -3421,6 +3432,7 @@ class KernelWriterAssembly(KernelWriter):
 
         module.add(SCmpEQU32(src0=sgpr("ShadowLimit%s+1"%tc), src1=0, comment="are we within 2^32?"))
         module.add(SCSelectB32(dst=sgpr("Srd%s+2"%tc), src0=sgpr("ShadowLimit%s+0"%tc), src1="BufferLimit", comment="Move shadow to real if we are within 2^32"))
+        module.add(self.shiftSrd(tc))
       else:
         # put limit directly into SRD:
         if log2(tP["bpeGR"]) > 0:
@@ -6358,7 +6370,7 @@ class KernelWriterAssembly(KernelWriter):
     # calculate constant
     is_mfma          = self.states.asmCaps["HasMFMA"]
     is_wmma_v1          = self.states.asmCaps["HasWMMA_V1"]
-    is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"]
+    is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"] or self.states.asmCaps["HasWMMA_V3"]
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
     loopCounterName  = self.loopCounterName(kernel, self.states.unrollIdx)
@@ -6479,7 +6491,8 @@ class KernelWriterAssembly(KernelWriter):
                 if kernel["ProblemType"]["Sparse"]:
                     multiplyBy = numMIInput//blocksPerTGroupSMFMAA
                 else:
-                    multiplyBy = numMIInput//2 if vgprPerInputA == 8 else numMIInput
+                    #FIXME: how about v_wmma_f32_16x16x32_f16
+                    multiplyBy = numMIInput//2 if vgprPerInputA == 8 and not is_wmma_v2 else numMIInput
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
               elif blocksPerTGroupSMFMAA == 2 and (group * vgprPerSet0Group) == (elementsPerBlockSMFMAA * numRegistersIn):
@@ -6605,8 +6618,11 @@ class KernelWriterAssembly(KernelWriter):
                     shiftK.add(VShiftLeft(dst=vgpr(abReg+2, 2), shiftHex=sgpr(tmpSgprX3), src=aStr, comment=""))
                     shiftK.add(SAddU32(dst=sgpr(tmpSgprX3), src0=sgpr(tmpSgprX3), src1=64, comment=""))
                     shiftK.add(a_common)
-                  else:
+                  elif vgprPerInput == 2:
                     shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInput), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
+                  elif vgprPerInput > 1:
+                    assert False, f"Invalid vgprPerInput: {vgprPerInput}"
+                    
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
                     shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))
@@ -7269,6 +7285,7 @@ class KernelWriterAssembly(KernelWriter):
                        src0=sgpr("Srd%s+2"%(tc)), \
                        src1=incLower, \
                        comment="limit -= inc)" ))
+      imod.add(self.shiftSrd(tc))
     return imod
 
   def incrementMetadataSrd(self, incSparseLower, incSparseUpper):
@@ -10175,6 +10192,7 @@ class KernelWriterAssembly(KernelWriter):
     module.add(SMovB64(dst=sgpr("Srd%s+0"%ch, 2), src=sgpr("Address%s+0"%ch, 2), comment="init SRD base address" ))
     module.add(SMovB32(dst=sgpr("Srd%s+2"%ch), src="BufferOOB"))
     module.add(SMovB32(dst=sgpr("Srd%s+3"%ch), src="Srd127_96", comment="Set bits 127_96 in post-loop SRD"))
+    module.add(self.shiftSrd(ch))
     module.addSpaceLine()
     return module
 

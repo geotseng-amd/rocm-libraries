@@ -1098,6 +1098,26 @@ namespace rocisa
         }
     };
 
+    union SrdUpperFields125X
+    {
+        struct
+        {
+            uint32_t num_records_upper : 6;
+            uint32_t reserved : 6;
+            uint32_t stride : 14;
+            uint32_t stride_scale : 2;
+            uint32_t swizzle_enable : 1;
+            uint32_t oob_select : 1;
+            uint32_t type : 2;
+        };
+        unsigned int value;
+
+        SrdUpperFields125X()
+            : value(0)
+        {
+        }
+    };
+
     struct SrdUpperValue12XX : public BitfieldUnion
     {
         SrdUpperFields12XX fields;
@@ -1133,6 +1153,37 @@ namespace rocisa
         {
             return "hex: " + toString() + "\n" + fields_desc();
         }
+    };
+
+    struct SrdUpperValue125X : public BitfieldUnion
+    {
+        SrdUpperFields125X fields;
+
+        static SrdUpperValue125X staticInit()
+        {
+            SrdUpperValue125X value;
+            value.value = value.fields.value;
+            return value;
+        }
+
+        std::string fields_desc() const override
+        {
+            std::stringstream ss;
+            ss << field_desc("num_records_upper", fields.num_records_upper, 6) << "\n"
+               << field_desc("reserved", fields.reserved, 6) << "\n"
+               << field_desc("stride", fields.stride, 14) << "\n"
+               << field_desc("stride_scale", fields.stride_scale, 2) << "\n"
+               << field_desc("swizzle_enable", fields.swizzle_enable, 1) << "\n"
+               << field_desc("oob_select", fields.oob_select, 1) << "\n"
+               << field_desc("type", fields.type, 2);
+            return ss.str();
+        }
+
+        std::string desc() const override
+        {
+            return "hex: " + toString() + "\n" + fields_desc();
+        }
+
     };
 
     std::shared_ptr<BitfieldUnion> SrdUpperValue(const IsaVersion& isa);

@@ -217,6 +217,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                 strideK = 16
             else:
                 strideK = (mt + LdsPad) * 16
+        elif kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numBytes() > 16 and writer.states.asmCaps["HasWMMA_V3"]:
+            strideK *= (kernel["MIInputPerThread"] // inputPerThread)
+
         strideBlock      = kernel["MatrixInstM"] * strideTile
         if enableLDSTr:
            strideWave = kernel["MatrixInstM"] * vectorWidth

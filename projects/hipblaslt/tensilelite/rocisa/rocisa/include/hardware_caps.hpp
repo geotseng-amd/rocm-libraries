@@ -312,7 +312,7 @@ inline std::map<std::string, int> initArchCaps(const IsaVersion& isaVersion)
     std::vector<std::array<int, 3>> b = {{9, 0, 6}, {9, 0, 8}, {9, 0, 10}, {9, 4, 2}};
     std::map<std::string, int>      rv;
     rv["HasEccHalf"]
-        = checkInList(isaVersion, {{9, 0, 6}, {9, 0, 8}, {9, 0, 10}, {9, 4, 2}, {9, 5, 0}});
+        = checkInList(isaVersion, {{9, 0, 6}, {9, 0, 8}, {9, 0, 10}, {9, 4, 2}, {9, 5, 0}, {12, 5, 0}});
     rv["Waitcnt0Disabled"] = checkInList(isaVersion, {{9, 0, 8}, {9, 0, 10}, {9, 4, 2}, {9, 5, 0}});
     int deviceLDS          = 65536;
     if(checkInList(isaVersion, {{9, 5, 0}}))
@@ -331,7 +331,7 @@ inline std::map<std::string, int> initArchCaps(const IsaVersion& isaVersion)
     rv["SDWAWait"]           = checkInList(isaVersion, {{9, 4, 2}, {9, 5, 0}});
     rv["VgprBank"]           = checkInList(isaVersion[0], {10, 11, 12});
     rv["DSLow16NotPreserve"] = isaVersion[0] == 12;
-    rv["WorkGroupIdFromTTM"] = isaVersion[0] == 12;
+    rv["WorkGroupIdFromTTM"] = isaVersion[0] == 12 && isaVersion[1] != 5;
     rv["NoSDWA"]             = isaVersion[0] == 12;
     rv["VOP3ByteSel"]        = isaVersion[0] == 12;
     rv["HasFP8_OCP"]         = isaVersion[0] == 12;
