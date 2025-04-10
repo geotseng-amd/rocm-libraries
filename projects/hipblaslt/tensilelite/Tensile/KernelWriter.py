@@ -4252,15 +4252,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
     # Avoid bank conflict between VgprA and VgprC
-    if(self.states.archCaps["VgprBank"]):
+    if(self.states.archCaps["VgprBank"]) and not self.states.asmCaps["HasVgprMSB"]:
       if (self.states.c.startVgprValu % 4) != (vgprIdx % 4):
         vgprIdx += 2
     # dot2: alignment hack for wider local read
     if kernel["UseDotInstruction"] and kernel["InnerUnroll"] > 1:
       vgprIdx = ((vgprIdx+3)//4)*4
+
+    # 1024 vgpr: avoid cross pool usage
+    if self.states.asmCaps["HasVgprMSB"]:
+      vgprIdx = ((vgprIdx+7)//8)*8
     self.states.a.startVgprValu  = vgprIdx
     self.states.startVgpr        = vgprIdx
     vgprIdx += self.states.a.numVgprValu
+    
     numVgprValuPackA = 0
     if tensorParametersA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
       self.states.a.startVgprValuPack = vgprIdx
@@ -4287,7 +4292,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             + max(self.states.a.numVgprValu + numVgprValuPackA, self.states.a.numVgprG2LAllocated)
 
     # TODO: alignment hack, figure out a better solution
-    if(self.states.archCaps["VgprBank"]):
+    if(self.states.archCaps["VgprBank"]) and not self.states.asmCaps["HasVgprMSB"]:
       residual = (vgprIdx % 4)
       if (residual % 2) == 0:
         # if 2-aligned bank(bank0 and bank2), move to bank1 or bank3.
@@ -4296,6 +4301,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         vgprIdx = ((vgprIdx+1)//2)*2
     else:
       vgprIdx = ((vgprIdx+1)//2)*2
+      
+    # 1024 vgpr: avoid cross pool usage
+    if self.states.asmCaps["HasVgprMSB"]:
+      vgprIdx = ((vgprIdx+7)//8)*8
     self.states.b.startVgprValu  = vgprIdx
     vgprIdx += self.states.b.numVgprValu
     numVgprValuPackB = 0
@@ -4377,6 +4386,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.states.a.startVgprG2L is None and self.states.a.numVgprG2LAllocated > 0:
       # TODO: alignment hack, figure out a better solution
       vgprIdx = ((vgprIdx+1)//2)*2
+      # 1024 vgpr: avoid cross pool usage
+      if self.states.asmCaps["HasVgprMSB"]:
+        vgprIdx = ((vgprIdx+3)//4)*4
       self.states.a.startVgprG2L = vgprIdx
       if ("ULSGRODoubleG2L" in kernel) and kernel["ULSGRODoubleG2L"] == 1:
         vgprIdx += self.states.a.numVgprG2LAllocated*2
@@ -4386,6 +4398,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.states.b.startVgprG2L is None and self.states.b.numVgprG2LAllocated > 0:
       # TODO: alignment hack, figure out a better solution
       vgprIdx = ((vgprIdx+1)//2)*2
+      # 1024 vgpr: avoid cross pool usage
+      if self.states.asmCaps["HasVgprMSB"]:
+        vgprIdx = ((vgprIdx+3)//4)*4
       self.states.b.startVgprG2L = vgprIdx
       if ("ULSGRODoubleG2L" in kernel) and kernel["ULSGRODoubleG2L"] == 1:
         vgprIdx += self.states.b.numVgprG2LAllocated*2
@@ -5609,19 +5624,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       _placeholder.name = "Branch_%s"%_target.getLabelName()
       if _operation == "SCBranchSCC0":
-        if currentInstLength - count + 1 >= 16384:
+        if currentInstLength - count + 1 >= self.states.asmCaps["ShortBranchMaxLength"]:
           with self.allocTmpSgpr(3) as tmpSgprInfo:
               _placeholder.add(self.longBranchScc0(_target, 1, tmpSgprInfo))
         else:
           _placeholder.add(SCBranchSCC0(labelName=_target.getLabelName()))
       elif _operation == "SCBranchSCC1":
-        if currentInstLength - count + 1 >= 16384:
+        if currentInstLength - count + 1 >= self.states.asmCaps["ShortBranchMaxLength"]:
           with self.allocTmpSgpr(3) as tmpSgprInfo:
               _placeholder.add(self.longBranchScc1(_target, 1, tmpSgprInfo))
         else:
           _placeholder.add(SCBranchSCC1(labelName=_target.getLabelName()))
       elif _operation == "SBranch":
-        if currentInstLength - count + 1 >= 16384:
+        if currentInstLength - count + 1 >= self.states.asmCaps["ShortBranchMaxLength"]:
           with self.allocTmpSgpr(3) as tmpSgprInfo:
             _placeholder.add(SLongBranchPositive(_target, tmpSgprInfo))
         else:

@@ -323,6 +323,9 @@ inline std::map<std::string, int>
 
     rv["s_delay_alu"]
         = tryAssembler(isaVersion, assemblerPath, "s_delay_alu instid0(VALU_DEP_1)", isDebug);
+    rv["HasVgprMSB"] = tryAssembler(isaVersion, assemblerPath, "s_set_vgpr_msb 0", isDebug);
+    // workaround: as we generate s_set_vgpr_msb in toString(), we can't calculate inst len correctly.
+    rv["ShortBranchMaxLength"] = rv["HasVgprMSB"]? 8192 : 16384;
 
     if(tryAssembler(isaVersion, assemblerPath, "s_waitcnt vmcnt(63)", isDebug))
         rv["MaxVmcnt"] = 63;
@@ -376,13 +379,14 @@ inline std::map<std::string, int> initRegisterCaps(const IsaVersion&           i
                                                    std::map<std::string, int>& archCaps)
 {
     std::map<std::string, int> rv;
-    rv["MaxVgpr"] = 256;
+    // 1024 vgpr
+    rv["MaxVgpr"] = isaVersion[0] == 12 && isaVersion[1] == 5? 1024 : 256;
     // max allowed is 112 out of 112 , 6 is used by hardware 4 SGPRs are wasted
     rv["MaxSgpr"] = 102;
-
     rv["PhysicalMaxVgpr"]   = 512;
     rv["PhysicalMaxSgpr"]   = 800;
     rv["maxLDSConstOffset"] = 65536;
+
     if(isaVersion[0] == 10)
         rv["PhysicalMaxVgprCU"] = 1024 * 32;
     else if(isaVersion[0] == 11)
@@ -391,7 +395,7 @@ inline std::map<std::string, int> initRegisterCaps(const IsaVersion&           i
         else
             rv["PhysicalMaxVgprCU"] = 1536 * 32;
     else if(isaVersion[0] == 12)
-        rv["PhysicalMaxVgprCU"] = 1536 * 32;
+        rv["PhysicalMaxVgprCU"] = isaVersion[1] == 5? 4096 * 32 : 1536 * 32;
     else if(isaVersion[0] == 9)
         if(archCaps["ArchAccUnifiedRegs"])
             rv["PhysicalMaxVgprCU"] = 2048 * 64;

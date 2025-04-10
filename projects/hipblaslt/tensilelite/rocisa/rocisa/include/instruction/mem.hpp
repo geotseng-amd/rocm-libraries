@@ -184,7 +184,9 @@ namespace rocisa
             {
                 kStr += flat->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {vaddr}, dst);
+            return kStr;
         }
     };
 
@@ -255,7 +257,9 @@ namespace rocisa
             {
                 kStr += mubuf->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {vaddr}, dst);
+            return kStr;
         }
     };
 
@@ -491,7 +495,9 @@ namespace rocisa
             {
                 kStr += flat->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {vaddr, srcData}, nullptr);
+            return kStr;
         }
     };
 
@@ -563,7 +569,9 @@ namespace rocisa
             {
                 kStr += mubuf->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {vaddr}, srcData);
+            return kStr;
         }
     };
 
@@ -643,7 +651,9 @@ namespace rocisa
             {
                 kStr += ds->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {srcs}, dst);
+            return kStr;
         }
     };
 
@@ -734,7 +744,9 @@ namespace rocisa
             {
                 kStr += ds->toString();
             }
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {dstAddr, src0, src1}, nullptr);
+            return kStr;
         }
     };
 
@@ -1312,7 +1324,9 @@ namespace rocisa
             std::string kStr = instStr + " " + getArgStr();
             if(mubuf)
                 kStr += mubuf->toString();
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {vaddr}, srcData);
+            return kStr;
         }
     };
 
@@ -1518,7 +1532,9 @@ namespace rocisa
             std::string kStr = instStr + " " + getArgStr();
             if(flat)
                 kStr += flat->toString();
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {tmp, srcData}, vaddr);
+            return kStr;
         }
 
     private:
@@ -2109,7 +2125,18 @@ namespace rocisa
             auto dsCopy = ds ? std::make_shared<DSModifiers>(*ds) : std::make_shared<DSModifiers>();
             dsCopy->offset += 16;
             kStr2 += dsCopy->toString();
-            return formatWithComment(kStr) + formatWithComment(kStr2);
+            kStr = formatWithComment(kStr);
+            kStr2 = formatWithComment(kStr);
+            // TODO: refactor this
+            auto srcCopy = RegisterContainer(*dynamic_cast<RegisterContainer*>(src0.get()));
+            auto srcCopyPtr = std::make_shared<RegisterContainer>(srcCopy);
+            int regNum = srcCopyPtr->regNum / 2;
+            srcCopyPtr->regNum = regNum;
+            setMsb(kStr, {srcCopyPtr}, dstAddr);
+            int idx                       = srcCopyPtr->regName->offsets.size() - 1;
+            srcCopyPtr->regName->offsets[idx] = srcCopyPtr->regName->offsets[idx] + regNum;
+            setMsb(kStr2, {srcCopyPtr}, dstAddr);
+            return kStr + kStr2;
         }
     };
 

@@ -1435,6 +1435,48 @@ namespace rocisa
         int simm16;
     };
 
+    struct SSetVgprMsb : public Instruction
+    {
+        SSetVgprMsb(const int simm16, const std::string& comment = "")
+            : Instruction(InstType::INST_NOTYPE, comment)
+            , simm16(simm16)
+        {
+            setInst("s_set_vgpr_msb");
+        }
+
+        SSetVgprMsb(const int msbSrc0, const int msbSrc1, const int msbSrc2, const int msbDst, const std::string& comment = "")
+            : Instruction(InstType::INST_NOTYPE, comment)
+            , simm16( (msbDst << 6) + (msbSrc2 << 4) + (msbSrc1 << 2) + msbSrc0 )
+        {
+            setInst("s_set_vgpr_msb");
+        }
+
+        SSetVgprMsb(const SSetVgprMsb& other)
+            : Instruction(other)
+            , simm16(other.simm16)
+        {
+        }
+
+        std::shared_ptr<Item> clone() const override
+        {
+            return std::make_shared<SSetVgprMsb>(*this);
+        }
+
+        std::vector<InstructionInput> getParams() const override
+        {
+            return {simm16};
+        }
+
+        std::string toString() const override
+        {
+            rocIsa::getInstance().setVgprMsb(simm16);
+            return formatWithComment(instStr + " " + std::to_string(simm16));
+        }
+
+    private:
+        int simm16;
+    };
+
     struct SGetRegB32 : public CommonInstruction
     {
         SGetRegB32(const std::shared_ptr<Container>& dst,

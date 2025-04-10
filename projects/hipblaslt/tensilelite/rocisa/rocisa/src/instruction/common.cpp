@@ -635,6 +635,15 @@ void common_inst(nb::module_ m_common)
         .def("__deepcopy__",
              [](const rocisa::SSleep& self, nb::dict&) { return new rocisa::SSleep(self); });
 
+    nb::class_<rocisa::SSetVgprMsb, rocisa::Instruction>(m_common, "SSetVgprMsb")
+        .def(nb::init<const int, const std::string&>(), nb::arg("simm16"), nb::arg("comment") = "")
+        .def(nb::init<const int, const int, const int, const int, const std::string&>(),
+             nb::arg("msbSrc0"), nb::arg("msbSrc1"), nb::arg("msbSrc2"), nb::arg("msbDst"), nb::arg("comment") = "")
+        .def("getParams", &rocisa::SSetVgprMsb::getParams)
+        .def("__str__", &rocisa::SSetVgprMsb::toString)
+        .def("__deepcopy__",
+             [](const rocisa::SSetVgprMsb& self, nb::dict&) { return new rocisa::SSetVgprMsb(self); });
+
     nb::class_<rocisa::SGetRegB32, rocisa::CommonInstruction>(m_common, "SGetRegB32")
         .def(nb::init<const std::shared_ptr<rocisa::Container>&,
                       const InstructionInput&,

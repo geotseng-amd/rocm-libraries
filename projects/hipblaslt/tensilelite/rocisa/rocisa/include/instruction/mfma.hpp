@@ -232,7 +232,9 @@ namespace rocisa
         {
             auto        newInstStr = preStr();
             std::string kStr       = newInstStr + " " + getArgStr();
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {a, b, acc2}, acc);
+            return kStr;
         }
 
         int getIssueLatency() const
@@ -350,7 +352,9 @@ namespace rocisa
         {
             auto        newInstStr = preStr();
             std::string kStr       = newInstStr + " " + getArgStr();
-            return formatWithComment(kStr);
+            kStr = formatWithComment(kStr);
+            setMsb(kStr, {a, b, metadata}, acc);
+            return kStr;
         }
 
         int getIssueLatency() const

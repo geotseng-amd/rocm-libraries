@@ -108,6 +108,11 @@ namespace rocisa
                 t += "  /// " + comment;
             }
             t += "\n";
+            if(getAsmCaps()["HasVgprMSB"])
+            {
+                rocIsa::getInstance().setVgprMsb(0);
+                t += "s_set_vgpr_msb 0\n";
+            }
             return t;
         }
     };
@@ -677,7 +682,12 @@ namespace rocisa
             s += ".macro " + macro->toString();
             for(const auto& x : itemList)
             {
-                s += "    " + x->toString();
+                // macro formatting
+                std::string tmp = x->toString();
+                size_t pos = tmp.find("\n");
+                if(tmp.find("s_set_vgpr_msb") != std::string::npos)
+                    tmp.insert(pos+1, "    ");
+                s += "    " + tmp;
             }
             s += ".endm\n";
             if(0)
@@ -834,6 +844,8 @@ namespace rocisa
             : ValueSet(name, value, offset)
             , regType(regType)
         {
+            if(getAsmCaps()["HasVgprMSB"] && regType == "v")
+                setIdx(value, offset);
         }
 
         RegSet(const std::string& regType,
@@ -843,6 +855,37 @@ namespace rocisa
             : ValueSet(name, value, offset)
             , regType(regType)
         {
+            if(getAsmCaps()["HasVgprMSB"] && regType == "v")
+                setIdx(value, offset);
+        }
+
+        inline void setIdx(int val, int offset) const
+        {
+            // std::cout << name.substr(4) << ": " << val + offset << "\n";
+            rocIsa::getInstance().setVgprIdx(name.substr(4), val + offset);
+        }
+
+        inline void setIdx(const std::string& value, int offset) const
+        {
+            std::map<std::string, int> m = getVgprIdx();
+            // std::cout << name.substr(4) << ": " << m[value.substr(4)] + offset << "\n";
+            // use substr to skip prefix "vgpr"
+            rocIsa::getInstance().setVgprIdx(name.substr(4), m[value.substr(4)] + offset);
+        }
+
+        std::string toString() const override
+        {
+            if(regType == "v" && getAsmCaps()["HasVgprMSB"]){
+                if(ref)
+                {
+                    setIdx(ref.value(), offset);
+                }
+                else if(value)
+                {
+                    setIdx(value.value(), offset);
+                }
+            }
+            return ValueSet::toString();
         }
     };
 
