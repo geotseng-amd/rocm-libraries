@@ -1717,6 +1717,30 @@ namespace rocisa
         }
     };
 
+    struct DSLoadB128TrB16 : public DSLoadInstruction
+    {
+        DSLoadB128TrB16(const std::shared_ptr<RegisterContainer>& dst,
+                       const std::shared_ptr<RegisterContainer>& src,
+                       std::optional<DSModifiers>                ds      = std::nullopt,
+                       const std::string&                        comment = "")
+            : DSLoadInstruction(InstType::INST_B64, dst, src, ds, comment)
+        {
+            if(ds)
+                ds->na = 1;
+            setInst("ds_load_tr16_b128");
+        }
+
+        DSLoadB128TrB16(const DSLoadB64TrB16& other)
+            : DSLoadInstruction(other)
+        {
+        }
+
+        std::shared_ptr<Item> clone() const override
+        {
+            return std::make_shared<DSLoadB128TrB16>(*this);
+        }
+    };
+
     struct DSLoadB128 : public DSLoadInstruction
     {
         DSLoadB128(const std::shared_ptr<RegisterContainer>& dst,

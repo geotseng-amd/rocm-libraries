@@ -358,6 +358,10 @@ class KernelWriterAssembly(KernelWriter):
     else:
       raise RuntimeError("Could not find valid memory instruction for operation=%s, width=%f, kernel=%s" %(operation, width, self.states.kernelName))
 
+  def selectTransposedDSReadInstuctionIdx(self, numReturnedRegisters: int, bpe: int):
+    insts = self.memoryInstructions["TrLocalRead"]
+    return next(i for i, inst in enumerate(insts) if inst.bpe == bpe and inst.blockWidth == numReturnedRegisters)
+
   def initGlobalReadMemoryInstruction(self, instructions, tP, bpr):
     # globalRead instruction; no flat_load2_*
     globalReadWidth = float(tP["nrcv"]*tP["bpeGR"])/bpr
@@ -434,19 +438,20 @@ class KernelWriterAssembly(KernelWriter):
     tP["enableLDSTr"] = False
     if tChar != "Metadata":
         tP["enableLDSTr"] = kernel["enableLDSTr%s"%tChar]
-    length = len(instructions["LocalRead"])
 
+    lrInstPoolName = "LocalRead"
     if tP["enableLDSTr"]:
-        localReadInstructionIdx = length - 1
+      lrInstPoolName = "TrLocalRead"
+      localReadInstructionIdx = self.selectTransposedDSReadInstuctionIdx(min(int(localReadWidth*kernel["MIInputPerThread"]), 4), tP["bpeDS"])
     else:
-        localReadInstructionIdx = self.selectMemoryInstruction("LocalRead", localReadWidth, \
-                                   False, \
-                                   localRead2Coalesced, localRead2Perpendicular,
-                                   [localReadStrideCoalesced] )
+      localReadInstructionIdx = self.selectMemoryInstruction("LocalRead", localReadWidth, \
+                                 False, \
+                                 localRead2Coalesced, localRead2Perpendicular,
+                                 [localReadStrideCoalesced] )
     tP["localRead2Coalesced"]      = localRead2Coalesced
     tP["localRead2Perpendicular"]  = localRead2Perpendicular
     tP["localReadStrideCoalesced"] = localReadStrideCoalesced
-    tP["localReadInstruction"]     = instructions["LocalRead"][localReadInstructionIdx]
+    tP["localReadInstruction"]     = instructions[lrInstPoolName][localReadInstructionIdx]
 
   def allocTmpSgpr(self, num: int, alignment=None, tag=None):
     def overflowListener(e):

@@ -148,6 +148,8 @@ def isExtractableIndex(ks, index, tc='x'):
 # Solution
 ################################################################################
 class Solution(collections.abc.Mapping):
+  MAX_NUM_DS_LOAD_VGPRS: int = 4
+  MAX_NUM_DS_LOAD_BYTES: int = 4 * MAX_NUM_DS_LOAD_VGPRS
 
   ########################################   # need to be sure PSRR is passing to all fxns
   def __init__(
@@ -1687,18 +1689,17 @@ class Solution(collections.abc.Mapping):
 
       # Default LocalReadVectorWidth
       if state["EnableMatrixInstruction"]:
-        autoLRVW = 0
+        autoLRVW = False
         if state["LocalReadVectorWidth"] == -1:
-          autoLRVW = 1
+          autoLRVW = True
+          maxLRVW = Solution.MAX_NUM_DS_LOAD_BYTES // state["ProblemType"]["DataType"].numBytes()
           if state["TransposeLDS"] and (not state["DirectToLds"]):
-            state["LocalReadVectorWidth"] = 16 // state["ProblemType"]["DataType"].numBytes()
+            state["LocalReadVectorWidth"] = maxLRVW
           else:
-            if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > 16:
-              state["LocalReadVectorWidth"] = 16 // state["ProblemType"]["DataType"].numBytes()
-            else:
-              state["LocalReadVectorWidth"] = state["MIInputPerThread"]
+            state["LocalReadVectorWidth"] = min(state["MIInputPerThread"], maxLRVW)
+          assert state["LocalReadVectorWidth"] <= maxLRVW, "# bytes of lrvw > 32"
         else:
-          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > 16:
+          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
             if state["LocalReadVectorWidth"] < state["MIInputPerThread"] // 2:
               reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"] // 2))
           elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["DataType"].is8bitFloat() and (state["MatrixInstK"] == 64 or state["MatrixInstK"] == 128)):
