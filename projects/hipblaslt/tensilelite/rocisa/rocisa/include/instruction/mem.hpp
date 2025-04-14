@@ -1723,7 +1723,7 @@ namespace rocisa
                        const std::shared_ptr<RegisterContainer>& src,
                        std::optional<DSModifiers>                ds      = std::nullopt,
                        const std::string&                        comment = "")
-            : DSLoadInstruction(InstType::INST_B64, dst, src, ds, comment)
+            : DSLoadInstruction(InstType::INST_B128, dst, src, ds, comment)
         {
             if(ds)
                 ds->na = 1;
@@ -1738,6 +1738,30 @@ namespace rocisa
         std::shared_ptr<Item> clone() const override
         {
             return std::make_shared<DSLoadB128TrB16>(*this);
+        }
+    };
+
+    struct DSLoadB64TrB8 : public DSLoadInstruction
+    {
+        DSLoadB64TrB8(const std::shared_ptr<RegisterContainer>& dst,
+                      const std::shared_ptr<RegisterContainer>& src,
+                      std::optional<DSModifiers>                ds      = std::nullopt,
+                      const std::string&                        comment = "")
+            : DSLoadInstruction(InstType::INST_B64, dst, src, ds, comment)
+        {
+            if(ds)
+                ds->na = 1;
+            setInst("ds_load_tr8_b64");
+        }
+
+        DSLoadB64TrB8(const DSLoadB64TrB16& other)
+            : DSLoadInstruction(other)
+        {
+        }
+
+        std::shared_ptr<Item> clone() const override
+        {
+            return std::make_shared<DSLoadB64TrB8>(*this);
         }
     };
 

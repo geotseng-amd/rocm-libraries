@@ -442,7 +442,14 @@ class KernelWriterAssembly(KernelWriter):
     lrInstPoolName = "LocalRead"
     if tP["enableLDSTr"]:
       lrInstPoolName = "TrLocalRead"
-      localReadInstructionIdx = self.selectTransposedDSReadInstuctionIdx(min(int(localReadWidth*kernel["MIInputPerThread"]), 4), tP["bpeDS"])
+      maxTrLoadNumReturnedVgpr = 4
+      
+      if tP["bpeDS"] == 1:
+        maxTrLoadNumReturnedVgpr = 2
+      elif tP["bpeDS"] != 2:
+        assert False, f"Unhandled bpeDS: {tP['bpeDS']}"
+
+      localReadInstructionIdx = self.selectTransposedDSReadInstuctionIdx(min(int(localReadWidth*kernel["MIInputPerThread"]), maxTrLoadNumReturnedVgpr), tP["bpeDS"])
     else:
       localReadInstructionIdx = self.selectMemoryInstruction("LocalRead", localReadWidth, \
                                  False, \

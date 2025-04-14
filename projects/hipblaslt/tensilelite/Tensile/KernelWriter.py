@@ -3753,6 +3753,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     _ds_load_u8 = MemoryInstruction(DSLoadU8,      1, 1, 1, 0.25)
     _ds_load_b64_tr_b16 = MemoryInstruction(DSLoadB64TrB16,    1, 1, 2, 2, bpe=2)
     _ds_load_b128_tr_b16 = MemoryInstruction(DSLoadB128TrB16,    1, 1, 4, 4, bpe=2)
+    _ds_load_b64_tr_b8 = MemoryInstruction(DSLoadB64TrB8,    1, 1, 2, 2, bpe=1)
 
     ########################################
     # Local Write
@@ -3817,7 +3818,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           "GlobalWrite": [ chosen_store_b128, chosen_store_b64, chosen_store_b32 ],
           "LocalRead"  : [ _ds_load_b128, _ds_load2_b64, _ds_load_b64,
                            _ds_load2_b32, _ds_load_b32, _ds_load_u16, _ds_load_u8],
-          "TrLocalRead": [_ds_load_b64_tr_b16, _ds_load_b128_tr_b16],
+          "TrLocalRead": [_ds_load_b64_tr_b16, _ds_load_b128_tr_b16, _ds_load_b64_tr_b8],
           "LocalWrite" : [ _ds_store_b256, _ds_store_b128, _ds_store2_b64,
                            _ds_store_b64, _ds_store2_b32, _ds_store_b32,
                            _ds_store_b16, _ds_store_b8 ]
