@@ -352,6 +352,9 @@ inline std::map<std::string, int> initArchCaps(const IsaVersion& isaVersion)
     int deviceLDS          = 65536;
     if(checkInList(isaVersion, {{9, 5, 0}}))
         deviceLDS = 163840;
+    else if(checkInList(isaVersion, {{12, 5, 0}}))
+        deviceLDS = 327680;
+
     rv["DeviceLDS"]          = deviceLDS;
     rv["SeparateVscnt"]      = checkInList(isaVersion[0], {10, 11});
     rv["SeparateLGKMcnt"]    = isaVersion[0] == 12;
