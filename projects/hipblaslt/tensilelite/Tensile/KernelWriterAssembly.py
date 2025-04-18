@@ -7292,12 +7292,12 @@ class KernelWriterAssembly(KernelWriter):
         imod.add(SCSelectB32(dst=sgpr("Srd%s+2"%tc), src0=sgpr("ShadowLimit%s+0"%tc), src1="BufferLimit", comment="Move shadow to real if we are within 2^32"))
       else:
         imod.add(SCMovB32(dst=sgpr("Srd%s+2"%tc), src=sgpr("ShadowLimit%s+0"%tc), comment="Move shadow to real if we are within 2^32"))
+      imod.add(self.shiftSrd(tc))
     else:
       imod.add(SSubU32(dst=sgpr("Srd%s+2"%(tc)), \
                        src0=sgpr("Srd%s+2"%(tc)), \
                        src1=incLower, \
                        comment="limit -= inc)" ))
-      imod.add(self.shiftSrd(tc))
     return imod
 
   def incrementMetadataSrd(self, incSparseLower, incSparseUpper):
