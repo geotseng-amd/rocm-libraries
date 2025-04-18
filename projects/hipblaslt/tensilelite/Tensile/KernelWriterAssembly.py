@@ -6387,9 +6387,10 @@ class KernelWriterAssembly(KernelWriter):
 
     miInputType      = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
     # calculate constant
-    is_mfma          = self.states.asmCaps["HasMFMA"]
-    is_wmma_v1          = self.states.asmCaps["HasWMMA_V1"]
-    is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"] or self.states.asmCaps["HasWMMA_V3"]
+    is_mfma          = self.states.asmCaps["HasMFMA"]or self.states.asmCaps["HasWMMA_V3"]
+    is_wmma_v1          = self.states.asmCaps["HasWMMA_V1"] 
+    is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"] 
+    is_wmma_v3          = self.states.asmCaps["HasWMMA_V3"] 
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
     loopCounterName  = self.loopCounterName(kernel, self.states.unrollIdx)
@@ -6511,7 +6512,7 @@ class KernelWriterAssembly(KernelWriter):
                     multiplyBy = numMIInput//blocksPerTGroupSMFMAA
                 else:
                     #FIXME: how about v_wmma_f32_16x16x32_f16
-                    multiplyBy = numMIInput//2 if vgprPerInputA == 8 and not is_wmma_v2 else numMIInput
+                    multiplyBy = numMIInput//2 if vgprPerInputA == 8 and not is_wmma_v2 and not is_wmma_v3 else numMIInput
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
               elif blocksPerTGroupSMFMAA == 2 and (group * vgprPerSet0Group) == (elementsPerBlockSMFMAA * numRegistersIn):
@@ -6520,7 +6521,7 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 kIncA = numMIInput//numSet0GroupA
                 if self.states.asmCaps["HasMFMA_f8f6f4"]:
-                  if group == 2 and vgprPerInputA == 8: #special layout for F8
+                  if group == 2 and vgprPerInputA == 8 and not is_wmma_v3: #special layout for F8
                     kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
               if kernel["LocalSplitU"] > 1:
@@ -6556,7 +6557,7 @@ class KernelWriterAssembly(KernelWriter):
                 if kernel["ProblemType"]["Sparse"]:
                     multiplyBy = numMIInput//blocksPerTGroupSMFMAB
                 else:
-                    multiplyBy = numMIInput//2 if vgprPerInputB == 8 else numMIInput
+                    multiplyBy = numMIInput//2 if vgprPerInputB == 8 and not is_wmma_v2 and not is_wmma_v3 else numMIInput
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
               elif blocksPerTGroupSMFMAB == 2 and (group * vgprPerSet0Group) == (elementsPerBlockSMFMAB * numRegistersIn):
@@ -6564,7 +6565,7 @@ class KernelWriterAssembly(KernelWriter):
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
               else:
                 kIncB = numMIInput//numSet0GroupB
-                if group == 2 and vgprPerInputB == 8:
+                if group == 2 and vgprPerInputB == 8 and not is_wmma_v3:
                    kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
               # replace 0 for differnet thread
@@ -6584,9 +6585,14 @@ class KernelWriterAssembly(KernelWriter):
             if (vgprPerInput < 4 and is_mfma) or is_wmma_v2:
               shiftK.add(VSubU32(dst=vgpr(kReg), src0=sgpr(loopCntSgpr), src1=vgpr(kReg_first), comment="get distance between size and k index"))
               shiftK.add(VCmpLtI32(dst=sgpr(tmpSgprX2, self.states.laneSGPRCount), src0=vgpr(kReg), src1=numMIInput, comment="set partial 0 if distance less than input per thread"))
-            shiftK.add(SAndB32(dst=sgpr(tmpSgprX1), src0=sgpr(loopCntSgpr), src1=numMIInput-1, comment="get inputs for edge thread"))
-            shiftK.add(SSubU32(dst=sgpr(tmpSgprX1), src0=numMIInput, src1=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
-            shiftK.add(SLShiftLeftB32(dst=sgpr(tmpSgprX1), shiftHex=log2(shiftPerElement), src=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
+            if is_wmma_v3:
+              shiftK.add(SAndB32(dst=sgpr(tmpSgprX1), src0=sgpr(loopCntSgpr), src1=int((64 // (numRegistersIn * 32))-1), comment="get inputs for edge thread"))
+              shiftK.add(SSubU32(dst=sgpr(tmpSgprX1), src0=int((64 // (numRegistersIn * 32))), src1=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
+              shiftK.add(SLShiftLeftB32(dst=sgpr(tmpSgprX1), shiftHex=log2(shiftPerElement), src=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
+            else:
+              shiftK.add(SAndB32(dst=sgpr(tmpSgprX1), src0=sgpr(loopCntSgpr), src1=numMIInput-1, comment="get inputs for edge thread"))
+              shiftK.add(SSubU32(dst=sgpr(tmpSgprX1), src0=numMIInput, src1=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
+              shiftK.add(SLShiftLeftB32(dst=sgpr(tmpSgprX1), shiftHex=log2(shiftPerElement), src=sgpr(tmpSgprX1), comment="use shift to fill 0 for outside element"))
 
             if vgprPerInput == 1:
               VShiftLeft = VLShiftLeftB32
@@ -6659,19 +6665,29 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
-                    if vgprPerInput >= 4:
-                      if bk == 0:
-                        shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInput//numSet0GroupA, "add part of K"))
-                      elif bk % 2 == 0:
-                        kIncA = numMIInput//numSet0GroupA
-                        if bk == 4 and self.states.asmCaps["HasMFMA_f8f6f4"]:
-                          kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
-                        shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
-                      # replace 0 for differnet thread
-                      if kernel["LocalSplitU"] > 1:
-                        shiftK.add(SMinI32(dst=sgpr(loopCntSgpr), src0=sgpr(loopCounterName), src1=sgpr("LSUTailLoopOffset"), comment="check lsu bound"))
-                      shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2,2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
-                    shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2,2), comment=""))
+                    if is_wmma_v3: # may check 64 bit
+                      if vgprPerInput >= 4:
+                        kIncA = int((64 // (numRegistersIn * 32)))
+                        if bk == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncA, "add part of K: 64 bit groupd"))
+                        elif bk % 2 == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K: 64 bit groupd"))
+                        shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
+                        shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2), comment=""))
+                    else:
+                      if vgprPerInput >= 4:
+                        if bk == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInput//numSet0GroupA, "add part of K"))
+                        elif bk % 2 == 0:
+                          kIncA = numMIInput//numSet0GroupA
+                          if bk == 4 and self.states.asmCaps["HasMFMA_f8f6f4"]:
+                            kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
+                        # replace 0 for differnet thread
+                        if kernel["LocalSplitU"] > 1:
+                          shiftK.add(SMinI32(dst=sgpr(loopCntSgpr), src0=sgpr(loopCounterName), src1=sgpr("LSUTailLoopOffset"), comment="check lsu bound"))
+                        shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2,2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
+                      shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2,2), comment=""))
 
             for b in range(0, kernel["MIWaveTileB"]):
               for iui in range(0, innerUnroll):
@@ -6731,19 +6747,29 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
                   for bk in range(0, vgprPerInput):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
-                    if vgprPerInput >= 4:
-                      if bk == 0:
-                        shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInput//numSet0GroupB, "add part of K"))
-                      elif bk % 2 == 0:
-                        kIncB = numMIInput//numSet0GroupB
-                        if bk == 4: # when vgprPerInput == 8
-                          kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
-                        shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
-                      # replace 0 for differnet thread
-                      if kernel["LocalSplitU"] > 1:
-                        shiftK.add(SMinI32(dst=sgpr(loopCntSgpr), src0=sgpr(loopCounterName), src1=sgpr("LSUTailLoopOffset"), comment="check lsu bound"))
-                      shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2,2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
-                    shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2,2), comment=""))
+                    if is_wmma_v3:
+                      if vgprPerInput >= 4:
+                        kIncB = int((64 // (numRegistersIn * 32)))
+                        if bk == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncB, "add part of K: 64 bits group"))
+                        elif bk % 2 == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K: 64 bits group"))
+                        shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
+                        shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2), comment=""))
+                    else:
+                      if vgprPerInput >= 4:
+                        if bk == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInput//numSet0GroupB, "add part of K"))
+                        elif bk % 2 == 0:
+                          kIncB = numMIInput//numSet0GroupB
+                          if bk == 4: # when vgprPerInput == 8
+                            kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
+                        # replace 0 for differnet thread
+                        if kernel["LocalSplitU"] > 1:
+                          shiftK.add(SMinI32(dst=sgpr(loopCntSgpr), src0=sgpr(loopCounterName), src1=sgpr("LSUTailLoopOffset"), comment="check lsu bound"))
+                        shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2,2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
+                      shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2,2), comment=""))
 
             if vgprPerInput == 4 and is_wmma_v2:
               if tmpVgpr2 is not None: self.vgprPool.checkIn(tmpVgpr2)
@@ -7885,6 +7911,8 @@ class KernelWriterAssembly(KernelWriter):
                     loadVgpr = destVgprHi if ((hi16 or hi8) and destVgprHi != None) else destVgpr
                   self.vgprs.globalReadRegisters[tc][-1] = destVgprHi if ((hi16 or hi8) and destVgprHi != None) else self.vgprs.globalReadRegisters[tc][-1]
                   if (kernel["ProblemType"]["DataType%s"%tcDataType].isInt8() or kernel["ProblemType"]["DataType%s"%tcDataType].is8bitFloat() or tP["isM"]) and (not self.states.archCaps["HasEccHalf"]):
+                    module.add(VMovB32(dst=vgpr(loadVgpr), src=0, comment="set to zero to avoid unexpected value"))
+                  if (kernel["ProblemType"]["DataType%s"%tcDataType].isHalf() or kernel["ProblemType"]["DataType%s"%tcDataType].isBFloat16()) and not tP["isM"] and self.states.asmCaps["HasWMMA_V3"]:
                     module.add(VMovB32(dst=vgpr(loadVgpr), src=0, comment="set to zero to avoid unexpected value"))
                   if doTailOpt == 1:
                     if behavior == "LOAD" and i == idx:
