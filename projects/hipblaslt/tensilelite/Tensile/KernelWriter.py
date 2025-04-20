@@ -2711,6 +2711,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     module = Module("body")
     module.add(Label("ASM_Start", "Main body of the asm kernel"))
     module.add(self.defineAndResources(kernel, tensorParametersA, tensorParametersB, tPM))
+    module.add(self.disableWmmaArbStall())
 
     # Initialize stream-k loop
     skComponent = Component.StreamK.find(self)

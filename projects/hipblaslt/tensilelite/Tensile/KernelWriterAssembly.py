@@ -1650,6 +1650,12 @@ class KernelWriterAssembly(KernelWriter):
         module.add(label_nonEarlyStop)
     return module
 
+  def disableWmmaArbStall(self) -> Module:
+    mod = Module()
+    if self.states.archCaps["HasWmmaArbStallBit"]:
+      mod.add(SSetRegIMM32B32(HWRegContainer(reg="26", value=[4, 1]), src=1, comment="Disable WMMA arb stall"))
+    return mod
+
   def defineAndResources(self, kernel, tPA, tPB, tPM):
     module = Module("allocateResources")
     module.add(self.macroAndSet(kernel, tPA, tPB))

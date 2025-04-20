@@ -343,6 +343,7 @@ inline std::map<std::string, int> initArchCaps(const IsaVersion& isaVersion)
     rv["NoSDWA"]             = isaVersion[0] == 12;
     rv["VOP3ByteSel"]        = isaVersion[0] == 12;
     rv["HasFP8_OCP"]         = isaVersion[0] == 12;
+    rv["HasWmmaArbStallBit"] = isaVersion[0] == 12 && isaVersion[1] == 5;
     rv["HasF32XEmulation"]   = checkInList(isaVersion, {{9, 5, 0}});
     return rv;
 }
