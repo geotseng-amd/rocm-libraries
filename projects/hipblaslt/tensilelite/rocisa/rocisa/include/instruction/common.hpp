@@ -639,6 +639,34 @@ namespace rocisa
         }
     };
 
+    struct SSubU64 : public CommonInstruction
+    {
+        SSubU64(const std::shared_ptr<Container>& dst,
+                const InstructionInput&           src0,
+                const InstructionInput&           src1,
+                const std::string&                comment = "")
+            : CommonInstruction(InstType::INST_B64,
+                                dst,
+                                {src0, src1},
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                comment)
+        {
+            setInst("s_sub_u64");
+        }
+
+        SSubU64(const SSubU64& other)
+            : CommonInstruction(other)
+        {
+        }
+
+        std::shared_ptr<Item> clone() const override
+        {
+            return std::make_shared<SSubU64>(*this);
+        }
+    };
+
     struct SGetPCB64 : public CommonInstruction
     {
         SGetPCB64(const std::shared_ptr<Container>& dst, const std::string& comment = "")

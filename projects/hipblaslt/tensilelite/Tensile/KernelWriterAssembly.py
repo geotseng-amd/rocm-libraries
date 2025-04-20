@@ -57,7 +57,7 @@ from rocisa.instruction import BranchInstruction, BufferLoadB128, BufferLoadB32,
   SEndpgm, SFf1B32, SLShiftLeft2AddU32, SLShiftLeftB32, SLShiftLeftB64, SLShiftRightB32, \
   SLShiftRightB64, SLoadB32, SLoadB64, SMFMAInstruction, SMemLoadInstruction, SMinI32, \
   SMinU32, SMovB32, SMovB64, SMulHIU32, SMulI32, SNop, SOrB32, SOrSaveExecB32, \
-  SOrSaveExecB64, SSExtI16toI32, SSetPCB64, SSetRegIMM32B32, SSetPrior, SSubBU32, SSubI32, SSubU32, \
+  SOrSaveExecB64, SSExtI16toI32, SSetPCB64, SSetRegIMM32B32, SSetPrior, SSubBU32, SSubI32, SSubU32, SSubU64, \
   SWaitCnt, SWaitAlu, SXorB32, VAShiftRightI32, VAccvgprReadB32, VAccvgprWrite, VAccvgprWriteB32, \
   VAdd3U32, VAddCCOU32, VAddCOU32, VAddF32, VAddF64, VAddLShiftLeftU32, VAddU32, VAndB32, \
   VBfeU32, VCmpEQI32, VCmpEQU32, VCmpGEI32, VCmpGEU32, VCmpGtU32, VCmpLeI32, VCmpLtI32, \
@@ -4428,14 +4428,21 @@ class KernelWriterAssembly(KernelWriter):
                 self.loopCounter(kernel, self.states.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx)), \
                 "Number of bytes accessed by the unroll loop"))
 
-      imod.add(SSubU32(dst=sgpr("WrapU%s+0"%tc),  \
-                src0=sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx)), \
-                src1=sgpr("WrapU%s+0"%tc), \
-                comment="remove one iteration"))
-      imod.add(SSubBU32(dst=sgpr("WrapU%s+1"%tc), \
-                src0=0, \
-                src1=sgpr("WrapU%s+1"%tc), \
-                comment="remove one iteration"))
+      
+      if self.states.asmCaps["s_sub_u64"]:
+        with self.allocTmpSgpr(2, 2) as stmp:
+          imod.add(SMovB32(sgpr(stmp.idx), sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx))))
+          imod.add(SMovB32(sgpr(stmp.idx+1), 0))
+          imod.add(SSubU64(dst=sgpr("WrapU%s"%tc, 2), src0=sgpr(stmp.idx, stmp.size), src1=sgpr("WrapU%s"%tc, 2), comment="increment-WrapU"))
+      else:
+        imod.add(SSubU32(dst=sgpr("WrapU%s+0"%tc),  \
+                  src0=sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx)), \
+                  src1=sgpr("WrapU%s+0"%tc), \
+                  comment="remove one iteration"))
+        imod.add(SSubBU32(dst=sgpr("WrapU%s+1"%tc), \
+                  src0=0, \
+                  src1=sgpr("WrapU%s+1"%tc), \
+                  comment="remove one iteration"))
 
       imod.add(self.incrementSrd(tP, sgpr(staggerTmp), sgpr(staggerTmp+1)))
 
@@ -4518,8 +4525,12 @@ class KernelWriterAssembly(KernelWriter):
       imod.addModuleAsFlatItems(self.s_mul_i64_i32_u32(sgpr(tmp), sgpr(tmp+1), \
                   sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx)), \
                   "start offset S in bytes"))
-      imod.add(SSubU32(dst=sgpr(tmp), src0=sgpr(tmp), src1=sgpr("WrapU%s"%tc), comment="S - WrapU"))
-      imod.add(SSubBU32(dst=sgpr(tmp+1), src0=sgpr(tmp+1), src1=sgpr("WrapU%s+1"%(tc)), comment="S - WrapU"))
+
+      if self.states.asmCaps["s_sub_u64"]:
+        imod.add(SSubU64(dst=sgpr(tmp, 2), src0=sgpr(tmp, 2), src1=sgpr("WrapU%s"%(tc), 2), comment="S - WrapU"))
+      else:
+        imod.add(SSubU32(dst=sgpr(tmp), src0=sgpr(tmp), src1=sgpr("WrapU%s"%tc), comment="S - WrapU"))
+        imod.add(SSubBU32(dst=sgpr(tmp+1), src0=sgpr(tmp+1), src1=sgpr("WrapU%s+1"%(tc)), comment="S - WrapU"))
 
       imod.add(self.incrementSrd(tP, sgpr(tmp), sgpr(tmp+1)))
 
