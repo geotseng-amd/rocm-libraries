@@ -158,6 +158,10 @@ inline std::map<std::string, int>
                     || tryAssembler(isaVersion,
                                     assemblerPath,
                                     "v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[8:15], v[0:7]",
+                                    isDebug)
+                    || tryAssembler(isaVersion,
+                                    assemblerPath,
+                                    "v_wmma_f32_16x16x4_f32 v[0:7], v[8:9], v[8:9], v[0:7]",
                                     isDebug);
     rv["HasWMMA_V1"] = tryAssembler(isaVersion,
                                     assemblerPath,
@@ -167,10 +171,13 @@ inline std::map<std::string, int>
                                     assemblerPath,
                                     "v_wmma_f32_16x16x16_f16 v[0:3], v[8:9], v[16:17], v[0:3]",
                                     isDebug);
-
     rv["HasWMMA_V3"] = tryAssembler(isaVersion,
                                     assemblerPath,
                                     "v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[8:15], v[0:7]",
+                                    isDebug)
+                    || tryAssembler(isaVersion,
+                                    assemblerPath,
+                                    "v_wmma_f32_16x16x4_f32 v[0:7], v[8:9], v[8:9], v[0:7]",
                                     isDebug);
 
     rv["v_mac_f16"] = tryAssembler(isaVersion, assemblerPath, "v_mac_f16 v47, v36, v34", isDebug);

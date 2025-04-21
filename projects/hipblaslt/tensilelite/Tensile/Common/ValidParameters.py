@@ -83,7 +83,7 @@ def makeValidWorkGroups():
     return validWorkGroups
 
 def makeValidWMMA():
-    return [[16, 16, 16, 1], [16, 16, 32, 1], [16, 16, 64, 1]]
+    return [[16, 16, 4, 1], [16, 16, 16, 1], [16, 16, 32, 1], [16, 16, 64, 1]]
 
 @lru_cache
 def makeValidMFMA():

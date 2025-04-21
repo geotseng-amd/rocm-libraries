@@ -1047,9 +1047,10 @@ class Solution(collections.abc.Mapping):
            " in fp32 (or i32) precision. Please add the following config:" + \
            "\n - HighPrecisionAccumulate: True")
           return
+      #FIXME: remove this section?
       if isaInfoMap[isa].asmCaps["HasWMMA"]:
-        if state["ProblemType"]["DataType"].numRegisters() >=1:
-          reject(state, printRejectionReason, "WMMA only support half, bf16 and i8 type")
+        if state["ProblemType"]["DataType"].numRegisters() > 2:
+          reject(state, printRejectionReason, "WMMA only support f32, f64, half, bf16 and i8 type")
           return
       if state["InterleaveAlpha"]:
         reject(state, printRejectionReason, "Matrix instruction doesn't support InterleaveAlpha")

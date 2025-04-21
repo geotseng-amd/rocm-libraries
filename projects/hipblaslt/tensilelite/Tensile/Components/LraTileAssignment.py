@@ -122,7 +122,7 @@ class LraTileAssignmentVALU(LraTileAssignment):
         return module
 
 class LraTileAssignmentTransposedMFMA(LraTileAssignment):
-    kernel = {"EnableMatrixInstruction": True, 
+    kernel = {"EnableMatrixInstruction": True,
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
@@ -239,8 +239,16 @@ class LraTileAssignmentTransposedMFMA(LraTileAssignment):
 
         return module
 
+class LraTileAssignmentTransposedMFMAFP32(LraTileAssignmentTransposedMFMA):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "DataType": DataType("s")
+              }}
+
 class LraTileAssignmentTransposedMFMAFP16(LraTileAssignmentTransposedMFMA):
-    kernel = {"EnableMatrixInstruction": True, 
+    kernel = {"EnableMatrixInstruction": True,
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
@@ -251,7 +259,7 @@ class LraTileAssignmentTransposedMFMAFP16(LraTileAssignmentTransposedMFMA):
     }
 
 class LraTileAssignmentTransposedMFMAB8(LraTileAssignmentTransposedMFMA):
-    kernel = {"EnableMatrixInstruction": True, 
+    kernel = {"EnableMatrixInstruction": True,
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
