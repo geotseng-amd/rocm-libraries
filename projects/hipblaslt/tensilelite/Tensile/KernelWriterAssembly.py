@@ -6398,7 +6398,7 @@ class KernelWriterAssembly(KernelWriter):
 
     miInputType      = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
     # calculate constant
-    is_mfma          = self.states.asmCaps["HasMFMA"]or self.states.asmCaps["HasWMMA_V3"]
+    is_mfma          = self.states.asmCaps["HasMFMA"]
     is_wmma_v1          = self.states.asmCaps["HasWMMA_V1"] 
     is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"] 
     is_wmma_v3          = self.states.asmCaps["HasWMMA_V3"] 
@@ -6662,7 +6662,7 @@ class KernelWriterAssembly(KernelWriter):
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
                     shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))
-                else: # mfma
+                else: # mfma or wmma_v3
 
                   if kernel["ProblemType"]["Sparse"]:
                     if vgprPerInput == 2:
@@ -6677,7 +6677,7 @@ class KernelWriterAssembly(KernelWriter):
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
                     if is_wmma_v3: # may check 64 bit
-                      if vgprPerInput >= 4:
+                      if vgprPerInput >= 2:
                         kIncA = int((64 // (numRegistersIn * 32)))
                         if bk == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncA, "add part of K: 64 bit groupd"))
@@ -6744,7 +6744,7 @@ class KernelWriterAssembly(KernelWriter):
                   for bk in range(0, vgprPerInput):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
                     shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))
-                else: # mfma
+                else: # mfma or wmma_v3
 
                   if kernel["ProblemType"]["Sparse"]:
                     if vgprPerInput == 2:
@@ -6759,7 +6759,7 @@ class KernelWriterAssembly(KernelWriter):
                   for bk in range(0, vgprPerInput):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
                     if is_wmma_v3:
-                      if vgprPerInput >= 4:
+                      if vgprPerInput >= 2:
                         kIncB = int((64 // (numRegistersIn * 32)))
                         if bk == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncB, "add part of K: 64 bits group"))
