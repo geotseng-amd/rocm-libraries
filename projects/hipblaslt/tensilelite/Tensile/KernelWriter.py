@@ -3016,10 +3016,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
                                tailLoopOpt1st == False) else 3
       globalReadMode2nd = 2 if (((tensorParameters2nd["glvw"] * tensorParameters2nd["bpeGR"]) < 4) or \
                                tailLoopOpt2nd == False) else 3
+
       globalReadMode1st = 3 if tensorParameters1st["isSwizzled"] else globalReadMode1st
       globalReadMode2nd = 3 if tensorParameters2nd["isSwizzled"] else globalReadMode2nd
-      globalReadMode1st = 2 if self.states.asmCaps["HasWMMA_V3"] else globalReadMode1st
-      globalReadMode2nd = 2 if self.states.asmCaps["HasWMMA_V3"] else globalReadMode2nd
 
       if kernel["DirectToLdsA"] and kernel["NonDTLTailLoopA"]:
         if tc1 == 'A':
@@ -3062,8 +3061,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           doA = True if (tensorParameters2nd["bpeGR"] % 4 != 0) and (not kernel["ProblemType"]["TLU%s"%(tc2)]) else False
         else:
           doB = True if (tensorParameters2nd["bpeGR"] % 4 != 0) and (not kernel["ProblemType"]["TLU%s"%(tc2)]) else False
-      doA = False if self.states.asmCaps["HasWMMA_V3"] else doA
-      doB = False if self.states.asmCaps["HasWMMA_V3"] else doB
 
       if doA or doB:
         if tc1 == 'A':
