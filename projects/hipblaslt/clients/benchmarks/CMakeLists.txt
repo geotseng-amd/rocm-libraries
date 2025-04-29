@@ -51,7 +51,8 @@ endif()
 
 if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # GCC or hip-clang needs specific flags to turn on f16c intrinsics
-  target_compile_options( hipblaslt-bench PRIVATE -mf16c )
+  # FIXME: workaround to emulator
+  target_compile_options( hipblaslt-bench PRIVATE -mf16c -mno-avx )
 endif( )
 
 target_compile_definitions( hipblaslt-bench PRIVATE HIPBLASLT_BENCH ROCM_USE_FLOAT16 HIPBLASLT_INTERNAL_API ${TENSILE_DEFINES} )
