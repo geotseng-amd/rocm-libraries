@@ -443,7 +443,7 @@ class KernelWriterAssembly(KernelWriter):
     if tP["enableLDSTr"]:
       lrInstPoolName = "TrLocalRead"
       maxTrLoadNumReturnedVgpr = 4
-      
+
       if tP["bpeDS"] == 1:
         maxTrLoadNumReturnedVgpr = 2
       elif tP["bpeDS"] != 2:
@@ -4004,6 +4004,8 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
         tPM = tPA["tpsMetadata"] if tPA["is_sparse"] else tPB["tpsMetadata"]
         module.add(component(self, kernel, tPM))
+    else:
+      assert 0, "Compoment lraTileAssignment Not Found"
 
     return module
 
@@ -6399,9 +6401,9 @@ class KernelWriterAssembly(KernelWriter):
     miInputType      = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
     # calculate constant
     is_mfma          = self.states.asmCaps["HasMFMA"]
-    is_wmma_v1          = self.states.asmCaps["HasWMMA_V1"] 
-    is_wmma_v2          = self.states.asmCaps["HasWMMA_V2"] 
-    is_wmma_v3          = self.states.asmCaps["HasWMMA_V3"] 
+    is_wmma_v1       = self.states.asmCaps["HasWMMA_V1"]
+    is_wmma_v2       = self.states.asmCaps["HasWMMA_V2"]
+    is_wmma_v3       = self.states.asmCaps["HasWMMA_V3"]
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
     loopCounterName  = self.loopCounterName(kernel, self.states.unrollIdx)
@@ -6429,6 +6431,7 @@ class KernelWriterAssembly(KernelWriter):
     accStoreCIdx     = 0
     # alloc vgpr
     kReg_first = None
+    tmpVgpr2 = None
     kReg    = None
     abReg   = None
     tmpVgpr = None
@@ -6658,7 +6661,7 @@ class KernelWriterAssembly(KernelWriter):
                     shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInput), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
                   elif vgprPerInput > 1:
                     assert False, f"Invalid vgprPerInput: {vgprPerInput}"
-                    
+
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
                     shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+bk), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))

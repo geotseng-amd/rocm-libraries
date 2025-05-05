@@ -375,6 +375,50 @@ class LraTileAssignmentTransposedMFMAB8(LraTileAssignmentTransposedMFMA):
 
         return module
 
+class LraTileAssignmentTransposedMFMA_FP8(LraTileAssignmentTransposedMFMAB8):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "DataType": DataType("F8")
+              }}
+    asmCaps = {
+        "HasLDSTrB64B8": True
+    }
+
+class LraTileAssignmentTransposedMFMA_BF8(LraTileAssignmentTransposedMFMA_FP8):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "DataType": DataType("B8")
+              }}
+    asmCaps = {
+        "HasLDSTrB64B8": True
+    }
+
+class LraTileAssignmentTransposedMFMA_FP8BF8(LraTileAssignmentTransposedMFMA_FP8):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "DataType": DataType("F8B8")
+              }}
+    asmCaps = {
+        "HasLDSTrB64B8": True
+    }
+
+class LraTileAssignmentTransposedMFMA_BF8FP8(LraTileAssignmentTransposedMFMA_FP8):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "DataType": DataType("B8F8")
+              }}
+    asmCaps = {
+        "HasLDSTrB64B8": True
+    }
+
 class LraTileAssignmentMFMA(LraTileAssignment):
     kernel = {"EnableMatrixInstruction": True, }
     asmCaps = {
@@ -469,13 +513,15 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             if kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numBytes() > 16:
               isSparseTrack = (kernel["ProblemType"]["Sparse"] == 2 and tP["isB"]) or (kernel["ProblemType"]["Sparse"] == 1 and tP["isA"]) or tP["isM"]
               strideK      = (inputPerThread if umlds else (mt + LdsPad) * inputPerThread) * (2 if isSparseTrack and kernel["MIInputPerThread%s"%tc] >  inputPerThread else 1)
-        #special case for new F8 MFMA
-        elif  kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32:
+        # special case for new F8 MFMA, need to exclude wmma_v3
+        elif kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32 and (not writer.states.asmCaps["HasWMMA_V3"]):
             if umlds:
                 strideK = 16
             else:
                 strideK = (mt + LdsPad) * 16
-        elif kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numBytes() > 16 and writer.states.asmCaps["HasWMMA_V3"]:
+        # FIXME- this one is for wmma_v3 BF16, but somehow should be removed.
+        #        F8 is fixed in LocalRead, so exclude it here
+        elif (kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numBytes() > 16) and (not kernel["ProblemType"]["DataType"].is8bitFloat()):
             strideK *= (kernel["MIInputPerThread"] // inputPerThread)
 
         strideBlock      = kernel["MatrixInstM"] * strideTile

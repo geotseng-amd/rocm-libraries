@@ -1311,14 +1311,24 @@ class Solution(collections.abc.Mapping):
     #         and not state["UnrollMajorLDSA"] and not state["DirectToVgprA"]
     # state["enableLDSTrB"] = state["LDSTrInst"] and isaInfoMap[isa].asmCaps["HasLDSTr"] and numBytes == 2 \
     #         and not state["UnrollMajorLDSB"] and not state["DirectToVgprB"]
+    # TODO- Is it possible for devices with asmCaps["HasLDSTr"], we automatically use it when UnrollMajorLDS=0
+    #       Supporting manually transpose load when having "HasLDSTr" is not worthy.
     state["enableLDSTrA"] = isLDSTrEnabled(isaInfoMap[isa].asmCaps, state["LDSTrInst"], state["UnrollMajorLDSA"], state["DirectToVgprA"], numBytes)
     state["enableLDSTrB"] = isLDSTrEnabled(isaInfoMap[isa].asmCaps, state["LDSTrInst"], state["UnrollMajorLDSB"], state["DirectToVgprB"], numBytes)
+
+    finalLDSTrInst = state["enableLDSTrA"] or state["enableLDSTrB"]
+    if state["LDSTrInst"] != finalLDSTrInst:
+      # This means LDSTrInst=True, but none of A/B can be enabled (False)
+      reject(state, printRejectionReason, "LDSTrInst is True but none of A/B can be enabled")
+      return
 
     if state["enableLDSTrA"]:
       state["VectorWidthA"] = 1
 
     if state["enableLDSTrB"]:
       state["VectorWidthB"] = 1
+
+    # The real value of "1LDSBuffer" will be determined later (when it is -1), not here
 
     # if state["EnableMatrixInstruction"] and not state["SourceSwap"] and (state["VectorWidthA"] > 1 or state["VectorWidthB"] > 1):
     #   reject(state, printRejectionReason, "not implement VectorWidth without SourceSwap")
@@ -1439,6 +1449,14 @@ class Solution(collections.abc.Mapping):
       return 2
 
     state["ExpertSchedulingMode"] = evaluateExpertSchedulingMode()
+
+    # We have the real "1LDSBuffer" value now, so we have to test the rejection condition here
+    # TODO-
+    #  On gfx1250, i8, f8, it seem working for 1LDSBuffer=0 "BUT EPS=0", haven't checked for other archs/types, so we still reject by 1LDSBuffer only
+    # if (state["enableLDSTrA"] or state["enableLDSTrB"]) and (not state["1LDSBuffer"] and state["ExpandPointerSwap"]):
+    if (state["enableLDSTrA"] or state["enableLDSTrB"]) and not state["1LDSBuffer"]:
+      reject(state, printRejectionReason, "Current LDSTrInst implementation does not support 1LDSBuffer=0")
+      return
 
   @staticmethod
   def depthUIteration(
@@ -1713,6 +1731,9 @@ class Solution(collections.abc.Mapping):
         if state["LocalReadVectorWidth"] == -1:
           autoLRVW = True
           maxLRVW = Solution.MAX_NUM_DS_LOAD_BYTES // state["ProblemType"]["DataType"].numBytes()
+          # TODO- make it generic, or maybe use maxLRVW(16) is also OK for non-MX F8
+          if isaInfoMap[isa].asmCaps["HasWMMA_V3"] and state["ProblemType"]["DataType"].is8bitFloat():
+            maxLRVW = 8
           if state["TransposeLDS"] and (not state["DirectToLds"]):
             state["LocalReadVectorWidth"] = maxLRVW
           else:
