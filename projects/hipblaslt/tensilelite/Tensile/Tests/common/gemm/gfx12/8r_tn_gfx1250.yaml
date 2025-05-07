@@ -26,7 +26,6 @@ GlobalParameters:
   # KeepBuildTmp: True
   PrintLevel: 2
   AMDGPUArchPath: rocm_agent_enumerator
-  CodeObjectVersion: 6
 
 BenchmarkProblems:
   #######################################

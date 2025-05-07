@@ -30,9 +30,7 @@ GlobalParameters:
   MinKForGSU: 1
   Architecture: gfx1250
   CpuThreads: 1
-  KeepBuildTmp: True
   AMDGPUArchPath: rocm_agent_enumerator
-  CodeObjectVersion: 6
 
 BenchmarkProblems:
   #######################################
