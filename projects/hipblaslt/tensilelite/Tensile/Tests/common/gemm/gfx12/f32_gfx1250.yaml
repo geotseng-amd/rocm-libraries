@@ -40,9 +40,13 @@ BenchmarkProblems:
       TransposeB: False
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -87,6 +91,10 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [16, 16, 1,  4]
           - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+        - BiasTypeArgs: ['s']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
 
 
   #######################################
@@ -103,9 +111,13 @@ BenchmarkProblems:
       TransposeB: False
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -150,6 +162,10 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [16, 16, 1,  4]
           - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+        - BiasTypeArgs: ['s']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
 
   #######################################
   # NT - standard
@@ -165,9 +181,13 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -212,6 +232,10 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [16, 16, 1,  4]
           - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+        - BiasTypeArgs: ['s']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
 
   #######################################
   # TT - standard
@@ -227,9 +251,13 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -274,3 +302,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [16, 16, 1,  4]
           - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+        - BiasTypeArgs: ['s']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
