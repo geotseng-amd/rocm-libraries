@@ -75,7 +75,7 @@ from .SolutionStructs import isPackedIndex
 from .AsmStoreState import StoreState, VectorDataTypes
 from .Activation import ActivationType
 from .CustomKernels import isCustomKernelConfig
-from .Common import roundUp, log2, ceilDivide
+from .Common import roundUp, log2, ceilDivide, wmmaV3InputVgprLayout
 from Tensile.Common import print2, printExit, printWarning, INDEX_CHARS, DebugConfig, DataDirection
 from Tensile.Common.DataType import DataType
 from Tensile.Common.RegisterPool import RegisterPool, allocTmpGpr, allocTmpGprList
@@ -6522,19 +6522,32 @@ class KernelWriterAssembly(KernelWriter):
           for group in range(0, numSet0GroupA):
             if numSet0GroupA > 1 or (is_wmma_v2 and vgprPerInputA > 2):
               if group == 0:
-                if kernel["ProblemType"]["Sparse"]:
-                    multiplyBy = numMIInput//blocksPerTGroupSMFMAA
-                else:
-                    #FIXME: how about v_wmma_f32_16x16x32_f16
-                    multiplyBy = numMIInput//2 if vgprPerInputA == 8 and not is_wmma_v2 and not is_wmma_v3 else numMIInput
+                multiplyBy = numMIInput
+                if kernel["ProblemType"]["Sparse"] == 1:
+                  multiplyBy = numMIInput // blocksPerTGroupSMFMAA
+                elif is_wmma_v3:
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  multiplyBy = vgprLayout[-1]
+                elif vgprPerInputA == 8 and not is_wmma_v2:
+                  multiplyBy = numMIInput // 2
+
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
               elif blocksPerTGroupSMFMAA == 2 and (group * vgprPerSet0Group) == (elementsPerBlockSMFMAA * numRegistersIn):
                 kIncA = blockOffsetSMFMAA + (numMIInput//numSet0GroupA) * max(group - 1, 0)
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
               else:
-                kIncA = numMIInput//numSet0GroupA
-                if self.states.asmCaps["HasMFMA_f8f6f4"]:
+                kIncA = numMIInput // numSet0GroupA
+
+                if is_wmma_v3:
+                  bpe = tPA["bpe"]
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  miVectorWidth = vgprLayout[-1]
+                  curElemIdx = group * vgprPerSet0Group * self.states.bpr // bpe
+
+                  if group and curElemIdx % miVectorWidth == 0:
+                    kIncA += miVectorWidth
+                elif self.states.asmCaps["HasMFMA_f8f6f4"]:
                   if group == 2 and vgprPerInputA == 8 and not is_wmma_v3: #special layout for F8
                     kIncA = 56 if kernel["MatrixInstK"] == 128 else 24
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K"))
@@ -6568,10 +6581,14 @@ class KernelWriterAssembly(KernelWriter):
           for group in range(0, numSet0GroupB):
             if numSet0GroupB > 1 or (is_wmma_v2 and vgprPerInputB > 2):
               if group == 0:
-                if kernel["ProblemType"]["Sparse"]:
-                    multiplyBy = numMIInput//blocksPerTGroupSMFMAB
-                else:
-                    multiplyBy = numMIInput//2 if vgprPerInputB == 8 and not is_wmma_v2 and not is_wmma_v3 else numMIInput
+                multiplyBy = numMIInput
+                if kernel["ProblemType"]["Sparse"] == 1:
+                  multiplyBy = numMIInput // blocksPerTGroupSMFMAB
+                elif is_wmma_v3:
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  multiplyBy = vgprLayout[-1]
+                elif vgprPerInputA == 8 and not is_wmma_v2:
+                  multiplyBy = numMIInput//2
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
               elif blocksPerTGroupSMFMAB == 2 and (group * vgprPerSet0Group) == (elementsPerBlockSMFMAB * numRegistersIn):
@@ -6579,7 +6596,15 @@ class KernelWriterAssembly(KernelWriter):
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
               else:
                 kIncB = numMIInput//numSet0GroupB
-                if group == 2 and vgprPerInputB == 8 and not is_wmma_v3:
+                if is_wmma_v3:
+                  bpe = tPB["bpe"]
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  miVectorWidth = vgprLayout[-1]
+                  curElemIdx = group * vgprPerSet0Group * self.states.bpr // bpe
+
+                  if group and curElemIdx % miVectorWidth == 0:
+                    kIncB += miVectorWidth
+                elif group == 2 and vgprPerInputB == 8 and not is_wmma_v3:
                    kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
               # replace 0 for differnet thread
@@ -6679,11 +6704,16 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
+                    elemIdx = bk * self.states.bpr // tPA["bpe"]
+                    mivw = vgprLayout[-1]
                     if is_wmma_v3: # may check 64 bit
+                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
                       if vgprPerInput >= 2:
                         kIncA = int((64 // (numRegistersIn * 32)))
-                        if bk == 0:
+                        if elemIdx == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncA, "add part of K: 64 bit groupd"))
+                        elif elemIdx % mivw == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA+mivw, "add part of K: 64 bit groupd"))
                         elif bk % 2 == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncA, "add part of K: 64 bit groupd"))
                         shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
@@ -6761,11 +6791,15 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
                   for bk in range(0, vgprPerInput):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
+                    elemIdx = bk * self.states.bpr // tPB["bpe"]
+                    mivw = vgprLayout[-1]
                     if is_wmma_v3:
                       if vgprPerInput >= 2:
                         kIncB = int((64 // (numRegistersIn * 32)))
-                        if bk == 0:
+                        if elemIdx == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncB, "add part of K: 64 bits group"))
+                        elif elemIdx % mivw == 0:
+                          shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB+mivw, "add part of K: 64 bit groupd"))
                         elif bk % 2 == 0:
                           shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K: 64 bits group"))
                         shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))

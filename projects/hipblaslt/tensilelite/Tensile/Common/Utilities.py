@@ -34,6 +34,7 @@ from copy import deepcopy
 from enum import Enum
 from math import log
 from pathlib import Path
+from typing import Sequence, Tuple
 
 from Tensile import __version__
 
@@ -369,3 +370,14 @@ def ceilDivide(numerator, denominator):
 
 def roundUpToNearestMultiple(numerator, denominator):
     return ceilDivide(numerator,denominator)*int(denominator)
+
+def wmmaV3InputVgprLayout(wmma: Sequence[int]) -> Tuple[int]:
+    wmma = tuple(wmma)
+    if wmma == (16, 16, 4, 1):
+        return (1, 16, 2, 2)
+    elif wmma == (16, 16, 32, 1):
+        return (2, 16, 2, 8)
+    elif wmma == (16, 16, 64, 1):
+        return (4, 16, 2, 8)
+    else:
+        assert False, f"Unhandled WMMA: {wmma}"
