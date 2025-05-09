@@ -1050,8 +1050,11 @@ class Solution(collections.abc.Mapping):
       #FIXME: remove this section?
       if isaInfoMap[isa].asmCaps["HasWMMA"]:
         if state["ProblemType"]["DataType"].numRegisters() > 2:
-          reject(state, printRejectionReason, "WMMA only support f32, f64, half, bf16 and i8 type")
+          reject(state, printRejectionReason, "WMMA only support f32, half, bf16 and i8 type")
           return
+      if state["ProblemType"]["DataType"].isDouble() and not (isaInfoMap[isa].asmCaps["HasMFMA_f64"] or isaInfoMap[isa].asmCaps["HasWMMA_V3_f64"]):
+        reject(state, printRejectionReason, f"isa {isa} doesn't support matrix instruction with type f64")
+        return
       if state["InterleaveAlpha"]:
         reject(state, printRejectionReason, "Matrix instruction doesn't support InterleaveAlpha")
         return

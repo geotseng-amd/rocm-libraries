@@ -77,7 +77,7 @@ inline std::map<std::string, int>
     rv["SupportedISA"] = tryAssembler(isaVersion, assemblerPath, "", isDebug);
     rv["HasExplicitCO"]
         = tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc,v0,1", isDebug)
-        || tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc_lo,v0,1", isDebug);
+          || tryAssembler(isaVersion, assemblerPath, "v_add_co_u32 v0,vcc_lo,v0,1", isDebug);
     rv["HasExplicitNC"] = tryAssembler(isaVersion, assemblerPath, "v_add_nc_u32 v0,v0,1", isDebug);
 
     rv["HasDirectToLds"] = tryAssembler(isaVersion,
@@ -175,10 +175,19 @@ inline std::map<std::string, int>
                                     assemblerPath,
                                     "v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[8:15], v[0:7]",
                                     isDebug)
-                    || tryAssembler(isaVersion,
-                                    assemblerPath,
-                                    "v_wmma_f32_16x16x4_f32 v[0:7], v[8:9], v[8:9], v[0:7]",
-                                    isDebug);
+                       || tryAssembler(isaVersion,
+                                       assemblerPath,
+                                       "v_wmma_f32_16x16x4_f32 v[0:7], v[8:9], v[8:9], v[0:7]",
+                                       isDebug);
+    rv["HasWMMA_V3_f64"]
+        = tryAssembler(isaVersion,
+                       assemblerPath,
+                       "v_wmma_f64_16x16x4_f64 v[0:15], v[16:19], v[20:23], v[0:15]",
+                       isDebug)
+          || tryAssembler(isaVersion,
+                          assemblerPath,
+                          "v_wmma_f64_16x16x8_f64 v[0:15], v[16:23], v[24:31], v[0:15]",
+                          isDebug);
 
     rv["v_mac_f16"] = tryAssembler(isaVersion, assemblerPath, "v_mac_f16 v47, v36, v34", isDebug);
 
@@ -238,10 +247,11 @@ inline std::map<std::string, int>
         isaVersion, assemblerPath, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]", isDebug);
 
     rv["v_mov_b64"] = tryAssembler(isaVersion, assemblerPath, "v_mov_b64 v[0:1], v[2:3]", isDebug);
-    rv["s_sub_u64"] = tryAssembler(isaVersion, assemblerPath, "s_sub_u64 s[0:1], s[0:1], s[2:3]", isDebug);
+    rv["s_sub_u64"]
+        = tryAssembler(isaVersion, assemblerPath, "s_sub_u64 s[0:1], s[0:1], s[2:3]", isDebug);
 
-    rv["HasBF16CVT"]    = tryAssembler(isaVersion, assemblerPath, "v_cvt_f32_bf16 v0, v1", isDebug) and
-                            !(checkInList(isaVersion, {{12, 5, 0}}));
+    rv["HasBF16CVT"] = tryAssembler(isaVersion, assemblerPath, "v_cvt_f32_bf16 v0, v1", isDebug)
+                       and !(checkInList(isaVersion, {{12, 5, 0}}));
     rv["Hascvtfp8_f16"] = tryAssembler(isaVersion,
                                        assemblerPath,
                                        "v_cvt_scalef32_pk_fp8_f16 v[0], v[1], 0 op_sel:[0,0,0,0]",
@@ -257,8 +267,8 @@ inline std::map<std::string, int>
     rv["HasLDSTrB128B16"] = tryAssembler(
         isaVersion, assemblerPath, "ds_load_tr16_b128 v[0:3], v0 offset: 0", isDebug);
 
-    rv["HasLDSTrB64B8"] = tryAssembler(
-        isaVersion, assemblerPath, "ds_load_tr8_b64 v[0:1], v0 offset: 0", isDebug);
+    rv["HasLDSTrB64B8"]
+        = tryAssembler(isaVersion, assemblerPath, "ds_load_tr8_b64 v[0:1], v0 offset: 0", isDebug);
 
     rv["HasLDSTr"] = rv["HasLDSTrB64B16"] || rv["HasLDSTrB128B16"] || rv["HasLDSTrB64B8"];
 

@@ -3669,7 +3669,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.states.doubleVgpr = True
 
     if kernel["EnableMatrixInstruction"]:
-      if (kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') and (not self.states.asmCaps["HasMFMA_f64"]):
+      if (kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') and not (self.states.asmCaps["HasMFMA_f64"] or self.states.asmCaps["HasWMMA_V3_f64"]):
         raise RuntimeError("FP64 MatrixInstruction not supported for {0}".format(self.states.version))
       elif not ( self.states.asmCaps["HasMFMA"] or self.states.asmCaps["HasWMMA"]):
         raise RuntimeError("MatrixInstruction not supported for {0}".format(self.states.version))
