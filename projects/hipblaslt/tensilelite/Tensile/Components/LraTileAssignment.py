@@ -519,10 +519,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                 strideK = 16
             else:
                 strideK = (mt + LdsPad) * 16
-        # FIXME- this one is for wmma_v3 BF16, but somehow should be removed.
-        #        F8 is fixed in LocalRead, so exclude it here
-        elif (kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numBytes() > 16) and (not kernel["ProblemType"]["DataType"].is8bitFloat()):
-            strideK *= (kernel["MIInputPerThread"] // inputPerThread)
 
         strideBlock      = kernel["MatrixInstM"] * strideTile
         if enableLDSTr:

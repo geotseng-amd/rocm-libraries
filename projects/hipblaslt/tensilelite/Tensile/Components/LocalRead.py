@@ -602,7 +602,8 @@ class LocalReadMFMA(LocalRead):
                                             incOffset = 48
                                 incOffset = rIdx * numElementPerRead * UnrollStride + incOffset
                                 offset_val = (incOffset + offset_val + tP["localReadOffset"]) * tP["bpeDS"]
-                            elif tuple(kernel["ISA"][:2]) == (12, 5) and kernel["ProblemType"]["DataType"].is8bitFloat():
+                            # For wmma_v3, the maximum number of bytes per read is 16 bytes in 4 vgprs, which happens in the case of fp16/bf16/fp8/bf8.
+                            elif tuple(kernel["ISA"][:2]) == (12, 5) and (kernel["ProblemType"]["DataType"].is8bitFloat() or kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
                                 if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
                                     incOffset = rIdx * numElementPerRead * UnrollStride * 2
                                 else:
