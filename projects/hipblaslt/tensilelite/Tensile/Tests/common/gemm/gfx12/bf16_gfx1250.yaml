@@ -42,16 +42,20 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: b
-      DestDataType: s
+      DestDataType: b
       ComputeDataType: s
       HighPrecisionAccumulate:  True
       TransposeA: False
       TransposeB: False
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s', 'b']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -98,7 +102,11 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [64, 16, 1, 1024]
           - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
-
+        - BiasTypeArgs: ['s','b']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
+          
   #######################################
   # TN - standard
   #######################################
@@ -106,16 +114,20 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: b
-      DestDataType: s
+      DestDataType: b
       ComputeDataType: s
       HighPrecisionAccumulate:  True
       TransposeA: True
       TransposeB: False
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s', 'b']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -162,6 +174,10 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [64, 16, 1, 1024]
           - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+        - BiasTypeArgs: ['s','b']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
 
   #######################################
   # NT - standard
@@ -170,16 +186,20 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: b
-      DestDataType: s
+      DestDataType: b
       ComputeDataType: s
       HighPrecisionAccumulate:  True
       TransposeA: False
       TransposeB: True
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s', 'b']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -226,6 +246,10 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [64, 16, 1, 1024]
           - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+        - BiasTypeArgs: ['s','b']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]
 
   #######################################
   # TT - standard
@@ -234,16 +258,20 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: b
-      DestDataType: s
+      DestDataType: b
       ComputeDataType: s
       HighPrecisionAccumulate:  True
       TransposeA: True
       TransposeB: True
       UseBeta: True
       Batched: True
-      Activation: False
       SupportUserArgs: True
-      UseBias: 0
+      UseBias: 1
+      Activation: True
+      #UseScaleAB: Scalar #SAB
+      UseScaleAlphaVec: 1 #SAV
+      BiasDataTypeList: ['s', 'b']
+      ActivationType:  hipblaslt_all
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -290,3 +318,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [64, 16, 1, 1024]
           - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+        - BiasTypeArgs: ['s','b']
+        - ActivationArgs:
+          - [Enum: none]
+          - [Enum: relu]

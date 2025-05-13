@@ -2,10 +2,10 @@
 - gfx1250
 - gfx1250
 - [Device 73f0]
-- Activation: false
+- Activation: true
   ActivationComputeDataType: 0
   ActivationNoGuard: false
-  ActivationType: none
+  ActivationType: hipblaslt_all
   AllowNoFreeDims: false
   AssignedDerivedParameters: true
   Batched: true
@@ -29,12 +29,12 @@
   Index01A: 0
   Index01B: 1
   Index1: 1
-  IndexAssignmentsA: [0, 3, 2]
+  IndexAssignmentsA: [3, 0, 2]
   IndexAssignmentsB: [3, 1, 2]
   IndexAssignmentsLD: [4, 5, 6, 7]
   IndexAssignmentsMetadata: [3, 0, 2]
   IndexUnroll: 3
-  IndexUnrollA: 1
+  IndexUnrollA: 0
   IndexUnrollB: 0
   IndexUnrollM: 0
   IndicesBatch: [2]
@@ -60,7 +60,7 @@
   SupportUserArgs: true
   SwizzleTensorA: false
   SwizzleTensorB: false
-  TLUA: true
+  TLUA: false
   TLUB: false
   Tensor0: 0
   Tensor1: 1
@@ -68,19 +68,19 @@
   TileAwareSelection: false
   TileB: 1
   TotalIndices: 4
-  TransposeA: false
+  TransposeA: true
   TransposeB: false
   UseBeta: true
-  UseBias: 0
+  UseBias: 1
   UseE: false
   UseInitialStridesAB: false
   UseInitialStridesCD: false
   UseScaleAB: ''
-  UseScaleAlphaVec: 0
+  UseScaleAlphaVec: 1
   UseScaleCD: false
 - - 1LDSBuffer: 0
     ActivationAlt: false
-    ActivationFuncCall: false
+    ActivationFuncCall: true
     ActivationFused: true
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
@@ -89,7 +89,7 @@
     AssertSummationElementMultiple: 1
     AssignedDerivedParameters: true
     AssignedProblemIndependentDerivedParameters: true
-    BaseName: Cijk_Ailk_Bljk_B_BS_BH_UserArgs_MT32x16x32_MI16xM3s-P739pnpLcNx9XouTbhz8clJAuwHPvgRjb8DMNH8=
+    BaseName: Cijk_Alik_Bljk_B_BS_BH_Bias_HA_S_SAV_UserArgs_MTvq1ZThzMduuGkxh0mpvpxInsaJIIfFpMcUQaPCKdnJM=
     BufferLoad: true
     BufferStore: true
     CUCount: null
@@ -131,7 +131,7 @@
       SupportUserGSU: true, UseUniversalArgs: true}
     Kernel: true
     KernelLanguage: Assembly
-    KernelNameMin: Cijk_Ailk_Bljk_B_BS_BH_UserArgs_MT32x16x32_MI16x16x1_SN_LDSB0_AFC0_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA1_GRVWB1_GSUAMB_GLS0_ISA1250_IU1_K1_LBSPPA512_LBSPPB128_LBSPPM0_LPA16_LPB16_LPM0_LRVW8_LWPMn1_MIAV1_MIWT1_1_MO40_NTn1_NTA0_NTB0_NTC0_NTD0_NTM0_NEPBS0_NLCA1_NLCB1_ONLL1_PGR2_PLR0_PKA0_SIA3_SS0_SPO0_SRVW0_SSO0_SVW8_SK0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG32_2_1
+    KernelNameMin: Cijk_Alik_Bljk_B_BS_BH_Bias_HA_S_SAV_UserArgs_MT32x16x32_MI16x16x1_SN_LDSB0_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA1_GRVWB1_GSUAMB_GLS0_ISA1250_IU1_K1_LDSTI0_LBSPPA128_LBSPPB128_LBSPPM0_LPA16_LPB16_LPM0_LRVW8_LWPMn1_MIAV1_MIWT1_1_MO40_NTn1_NTA0_NTB0_NTC0_NTD0_NTM0_NEPBS0_NLCA1_NLCB1_ONLL1_PGR2_PLR0_PKA0_SIA3_SS0_SPO0_SRVW0_SSO0_SVW8_SK0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG32_2_1
     LDSTrInst: false
     LSCA: 32
     LSCB: 32
@@ -142,24 +142,24 @@
     LVPA: 2
     LVPB: 2
     LdsAlignPow2: true
-    LdsBlockSizePerPadA: 512
+    LdsBlockSizePerPadA: 128
     LdsBlockSizePerPadB: 128
     LdsBlockSizePerPadMetadata: 0
-    LdsBytesNoAmax: 7552
+    LdsBytesNoAmax: 7936
     LdsInitCVgprs: false
-    LdsNumBytes: 7552
-    LdsNumElementsAlignedA: 2176
+    LdsNumBytes: 7936
+    LdsNumElementsAlignedA: 2560
     LdsNumElementsAlignedB: 1280
     LdsNumElementsAlignedMetadata: 0
     LdsOffsetA: 0
     LdsOffsetA_Blk: 4096
-    LdsOffsetB: 2176
-    LdsOffsetB_Blk: 6272
+    LdsOffsetB: 2560
+    LdsOffsetB_Blk: 6656
     LdsOffsetBias: 0
     LdsOffsetBiasGSU: 0
     LdsOffsetBiasNonGSU: 0
-    LdsOffsetMetadata: 2176
-    LdsOffsetMetadata_Blk: 6272
+    LdsOffsetMetadata: 2560
+    LdsOffsetMetadata_Blk: 6656
     LdsPadA: 16
     LdsPadB: 16
     LdsPadMetadata: 0
@@ -231,10 +231,10 @@
     PrefetchLocalRead: 0
     PreloadKernArgs: 0
     ProblemType:
-      Activation: false
+      Activation: true
       ActivationComputeDataType: 0
       ActivationNoGuard: false
-      ActivationType: none
+      ActivationType: hipblaslt_all
       AllowNoFreeDims: false
       AssignedDerivedParameters: true
       Batched: true
@@ -258,12 +258,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsA: [3, 0, 2]
       IndexAssignmentsB: [3, 1, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexAssignmentsMetadata: [3, 0, 2]
       IndexUnroll: 3
-      IndexUnrollA: 1
+      IndexUnrollA: 0
       IndexUnrollB: 0
       IndexUnrollM: 0
       IndicesBatch: [2]
@@ -289,7 +289,7 @@
       SupportUserArgs: true
       SwizzleTensorA: false
       SwizzleTensorB: false
-      TLUA: true
+      TLUA: false
       TLUB: false
       Tensor0: 0
       Tensor1: 1
@@ -297,21 +297,21 @@
       TileAwareSelection: false
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
+      TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseBias: 0
+      UseBias: 1
       UseE: false
       UseInitialStridesAB: false
       UseInitialStridesCD: false
       UseScaleAB: ''
-      UseScaleAlphaVec: 0
+      UseScaleAlphaVec: 1
       UseScaleCD: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 3
     ScheduleLocalWrite: 1
     SolutionIndex: 0
-    SolutionNameMin: Cijk_Ailk_Bljk_B_BS_BH_UserArgs_MT32x16x32_MI16x16x1_SN_LDSB0_AFC0_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA1_GRVWB1_GSU1_GSUAMB_GSUC0_GSUWGMRR0_GLS0_ISA1250_IU1_K1_LBSPPA512_LBSPPB128_LBSPPM0_LPA16_LPB16_LPM0_LRVW8_LWPMn1_MIAV1_MIWT1_1_MO40_NTn1_NTA0_NTB0_NTC0_NTD0_NTM0_NEPBS0_NLCA1_NLCB1_ONLL1_PGR2_PLR0_PKA0_SIA3_SS0_SU0_SUM0_SUS64_SPO0_SRVW0_SSO0_SVW8_SK0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG32_2_1_WGM1_WGMXCC1_WGMXCCGn1
+    SolutionNameMin: Cijk_Alik_Bljk_B_BS_BH_Bias_HA_S_SAV_UserArgs_MT32x16x32_MI16x16x1_SN_LDSB0_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA1_GRVWB1_GSU1_GSUAMB_GSUC0_GSUWGMRR0_GLS0_ISA1250_IU1_K1_LDSTI0_LBSPPA128_LBSPPB128_LBSPPM0_LPA16_LPB16_LPM0_LRVW8_LWPMn1_MIAV1_MIWT1_1_MO40_NTn1_NTA0_NTB0_NTC0_NTD0_NTM0_NEPBS0_NLCA1_NLCB1_ONLL1_PGR2_PLR0_PKA0_SIA3_SS0_SU0_SUM0_SUS64_SPO0_SRVW0_SSO0_SVW8_SK0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS32_WG32_2_1_WGM1_WGMXCC1_WGMXCCGn1
     SourceSwap: false
     StaggerU: 0
     StaggerUMapping: 0
@@ -337,7 +337,7 @@
     TransposeLDSMetadata: true
     ULSGRODoubleG2L: 0
     UnrollLoopSwapGlobalReadOrder: 0
-    UnrollMajorLDSA: false
+    UnrollMajorLDSA: true
     UnrollMajorLDSB: true
     UnrollMajorLDSMetadata: true
     Use64bShadowLimit: 1
@@ -372,7 +372,7 @@
     _staggerStrideShift: 0
     enableLDSTrA: false
     enableLDSTrB: false
-    ldsNumBytesA: 2176
+    ldsNumBytesA: 2560
     ldsNumBytesB: 1280
     reorderGRInstForDTVA: false
     reorderGRInstForDTVB: false
@@ -381,47 +381,47 @@
 - [2, 3, 0, 1]
 - - - [1, 1, 1, 1, 1, 1, 1, 1]
     - [0, .inf]
-  - - [1, 1, 1, 512, 1, 1, 1, 512]
+  - - [1, 1, 1, 512, 1, 1, 512, 512]
     - [0, .inf]
-  - - [1, 1024, 1, 512, 1, 1, 1, 512]
+  - - [1, 1024, 1, 512, 1, 1, 512, 512]
     - [0, .inf]
-  - - [1024, 1, 1, 512, 1024, 1024, 1024, 512]
+  - - [1024, 1, 1, 512, 1024, 1024, 512, 512]
     - [0, .inf]
-  - - [1, 1, 1, 63, 1, 1, 1, 63]
+  - - [1, 1, 1, 63, 1, 1, 63, 63]
     - [0, .inf]
-  - - [1, 1, 1, 64, 1, 1, 1, 64]
+  - - [1, 1, 1, 64, 1, 1, 64, 64]
     - [0, .inf]
-  - - [1, 1, 1, 65, 1, 1, 1, 65]
+  - - [1, 1, 1, 65, 1, 1, 65, 65]
     - [0, .inf]
-  - - [1, 1, 1, 127, 1, 1, 1, 127]
+  - - [1, 1, 1, 127, 1, 1, 127, 127]
     - [0, .inf]
-  - - [1, 1, 1, 128, 1, 1, 1, 128]
+  - - [1, 1, 1, 128, 1, 1, 128, 128]
     - [0, .inf]
-  - - [1, 1, 1, 129, 1, 1, 1, 129]
+  - - [1, 1, 1, 129, 1, 1, 129, 129]
     - [0, .inf]
-  - - [1, 1, 1, 255, 1, 1, 1, 255]
+  - - [1, 1, 1, 255, 1, 1, 255, 255]
     - [0, .inf]
-  - - [1, 1, 1, 256, 1, 1, 1, 256]
+  - - [1, 1, 1, 256, 1, 1, 256, 256]
     - [0, .inf]
-  - - [1, 1, 1, 257, 1, 1, 1, 257]
+  - - [1, 1, 1, 257, 1, 1, 257, 257]
     - [0, .inf]
-  - - [63, 1, 1, 1, 63, 63, 63, 1]
+  - - [63, 1, 1, 1, 63, 63, 1, 1]
     - [0, .inf]
-  - - [64, 1, 1, 1, 64, 64, 64, 1]
+  - - [64, 1, 1, 1, 64, 64, 1, 1]
     - [0, .inf]
-  - - [65, 1, 1, 1, 65, 65, 65, 1]
+  - - [65, 1, 1, 1, 65, 65, 1, 1]
     - [0, .inf]
-  - - [127, 1, 1, 1, 127, 127, 127, 1]
+  - - [127, 1, 1, 1, 127, 127, 1, 1]
     - [0, .inf]
-  - - [128, 1, 1, 1, 128, 128, 128, 1]
+  - - [128, 1, 1, 1, 128, 128, 1, 1]
     - [0, .inf]
-  - - [129, 1, 1, 1, 129, 129, 129, 1]
+  - - [129, 1, 1, 1, 129, 129, 1, 1]
     - [0, .inf]
-  - - [255, 1, 1, 1, 255, 255, 255, 1]
+  - - [255, 1, 1, 1, 255, 255, 1, 1]
     - [0, .inf]
-  - - [256, 1, 1, 1, 256, 256, 256, 1]
+  - - [256, 1, 1, 1, 256, 256, 1, 1]
     - [0, .inf]
-  - - [257, 1, 1, 1, 257, 257, 257, 1]
+  - - [257, 1, 1, 1, 257, 257, 1, 1]
     - [0, .inf]
   - - [1, 63, 1, 1, 1, 1, 1, 1]
     - [0, .inf]
