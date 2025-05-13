@@ -6704,10 +6704,10 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
                   for bk in range(0, vgprPerInput):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
-                    elemIdx = bk * self.states.bpr // tPA["bpe"]
-                    mivw = vgprLayout[-1]
+                    elemIdx = bk * self.states.bpr // tPA["bpe"]                    
                     if is_wmma_v3: # may check 64 bit
                       vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                      mivw = vgprLayout[-1]
                       if vgprPerInput >= 2:
                         kIncA = int((64 // (numRegistersIn * 32)))
                         if elemIdx == 0:
@@ -6792,8 +6792,9 @@ class KernelWriterAssembly(KernelWriter):
                   for bk in range(0, vgprPerInput):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
                     elemIdx = bk * self.states.bpr // tPB["bpe"]
-                    mivw = vgprLayout[-1]
                     if is_wmma_v3:
+                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                      mivw = vgprLayout[-1]
                       if vgprPerInput >= 2:
                         kIncB = int((64 // (numRegistersIn * 32)))
                         if elemIdx == 0:
