@@ -1373,11 +1373,9 @@ namespace TensileLite
                 virtual bool operator()(ContractionProblemGemm const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return (problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA)
-                                   * problem.a().elementBytes()
+                    return multiplyElementSize((problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA), problem.a().elementBytes())
                                < TWO_POW_32
-                           && (problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB)
-                                      * problem.b().elementBytes()
+                           && multiplyElementSize((problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB), problem.b().elementBytes())
                                   < TWO_POW_32;
                 }
 
@@ -1443,7 +1441,7 @@ namespace TensileLite
                     else
                     {
                         const uint64_t TWO_POW_32 = 4294967296;
-                        return problem.c().strides()[1] * problem.c().elementBytes() * value
+                        return multiplyElementSize(problem.c().strides()[1] * value, problem.c().elementBytes())
                                < TWO_POW_32;
                     }
                 }
@@ -1490,7 +1488,7 @@ namespace TensileLite
                 virtual bool operator()(ContractionProblemGemm const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.d().strides()[1] * problem.d().elementBytes() * value
+                    return multiplyElementSize(problem.d().strides()[1] * value, problem.d().elementBytes())
                            < TWO_POW_32;
                 }
 
