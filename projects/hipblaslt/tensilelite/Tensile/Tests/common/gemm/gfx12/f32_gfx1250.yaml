@@ -9,8 +9,8 @@ GlobalParameters:
   ValidationMaxToPrint: 4      # maximum number of mismatches to print
   ValidationPrintValids: False # print matches too
   PruneSparseMode: 0
-  DataInitTypeA: 12
-  DataInitTypeB: 13
+  DataInitTypeA: 3
+  DataInitTypeB: 3
   #DataInitTypeAlpha: 0
   #DataInitTypeBeta: 1
   #PrintTensorC: 1
@@ -89,8 +89,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [16, 16, 1,  4]
-          - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s']
         - ActivationArgs:
           - [Enum: none]
@@ -160,8 +161,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [16, 16, 1,  4]
-          - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s']
         - ActivationArgs:
           - [Enum: none]
@@ -230,8 +232,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [16, 16, 1,  4]
-          - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s']
         - ActivationArgs:
           - [Enum: none]
@@ -300,8 +303,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [16, 16, 1,  4]
-          - Range: [[19, 33, 64], [18, 31, 64], [1],  [15, 17, 64]] #number of sizes: 2x2x3 = 12
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s']
         - ActivationArgs:
           - [Enum: none]

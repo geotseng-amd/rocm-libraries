@@ -100,8 +100,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [64, 16, 1, 1024]
-          - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','b']
         - ActivationArgs:
           - [Enum: none]
@@ -172,8 +173,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [64, 16, 1, 1024]
-          - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','b']
         - ActivationArgs:
           - [Enum: none]
@@ -244,8 +246,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [64, 16, 1, 1024]
-          - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','b']
         - ActivationArgs:
           - [Enum: none]
@@ -316,8 +319,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [64, 16, 1, 1024]
-          - Range: [[15,15,96], [15,14,96], [1], [31,18,96]]
+          - Exact: [127, 127, 1, 127]
+          - Exact: [128, 128, 1, 128]
+          - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','b']
         - ActivationArgs:
           - [Enum: none]
