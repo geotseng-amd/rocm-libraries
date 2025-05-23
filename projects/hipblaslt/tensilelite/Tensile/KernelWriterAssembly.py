@@ -6526,7 +6526,7 @@ class KernelWriterAssembly(KernelWriter):
                 if kernel["ProblemType"]["Sparse"] == 1:
                   multiplyBy = numMIInput // blocksPerTGroupSMFMAA
                 elif is_wmma_v3:
-                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPA["bpe"] * 8)
                   multiplyBy = vgprLayout[-1]
                 elif vgprPerInputA == 8 and not is_wmma_v2:
                   multiplyBy = numMIInput // 2
@@ -6541,7 +6541,7 @@ class KernelWriterAssembly(KernelWriter):
 
                 if is_wmma_v3:
                   bpe = tPA["bpe"]
-                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPA["bpe"] * 8)
                   miVectorWidth = vgprLayout[-1]
                   curElemIdx = group * vgprPerSet0Group * self.states.bpr // bpe
 
@@ -6585,7 +6585,7 @@ class KernelWriterAssembly(KernelWriter):
                 if kernel["ProblemType"]["Sparse"] == 1:
                   multiplyBy = numMIInput // blocksPerTGroupSMFMAB
                 elif is_wmma_v3:
-                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPB["bpe"] * 8)
                   multiplyBy = vgprLayout[-1]
                 elif vgprPerInputA == 8 and not is_wmma_v2:
                   multiplyBy = numMIInput//2
@@ -6598,7 +6598,7 @@ class KernelWriterAssembly(KernelWriter):
                 kIncB = numMIInput//numSet0GroupB
                 if is_wmma_v3:
                   bpe = tPB["bpe"]
-                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                  vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPB["bpe"] * 8)
                   miVectorWidth = vgprLayout[-1]
                   curElemIdx = group * vgprPerSet0Group * self.states.bpr // bpe
 
@@ -6706,7 +6706,7 @@ class KernelWriterAssembly(KernelWriter):
                     aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk=bk), 1)
                     elemIdx = bk * self.states.bpr // tPA["bpe"]                    
                     if is_wmma_v3: # may check 64 bit
-                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPA["bpe"] * 8)
                       mivw = vgprLayout[-1]
                       if vgprPerInput >= 2:
                         kIncA = int((64 // (numRegistersIn * 32)))
@@ -6793,7 +6793,7 @@ class KernelWriterAssembly(KernelWriter):
                     bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk=bk), 1)
                     elemIdx = bk * self.states.bpr // tPB["bpe"]
                     if is_wmma_v3:
-                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"])
+                      vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPB["bpe"] * 8)
                       mivw = vgprLayout[-1]
                       if vgprPerInput >= 2:
                         kIncB = int((64 // (numRegistersIn * 32)))
@@ -12137,6 +12137,11 @@ class KernelWriterAssembly(KernelWriter):
         nonlocal rv
         factor = max(1, 4//bpl)
         dst = None if lds else vgpr(destVgpr, rpv*factor)
+
+        if bpl < 4:
+          if self.do["EmulatedECCBufferLoad"]:
+            rv.add(VMovB32(dst, 0))
+
         if bpl==1 and hi16:
           rv.add(BufferLoadD16HIU8(dst=dst, vaddr=addr0, saddr=addr1, \
                                   soffset=soffset, mubuf=mubuf, comment=comment))

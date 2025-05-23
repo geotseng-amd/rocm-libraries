@@ -1728,18 +1728,18 @@ class Solution(collections.abc.Mapping):
       # Default LocalReadVectorWidth
       if state["EnableMatrixInstruction"]:
         autoLRVW = False
+        maxLRVW = int(Solution.MAX_NUM_DS_LOAD_BYTES // state["ProblemType"]["DataType"].numBytes())
         if state["LocalReadVectorWidth"] == -1:
           autoLRVW = True
-          maxLRVW = Solution.MAX_NUM_DS_LOAD_BYTES // state["ProblemType"]["DataType"].numBytes()
-          # TODO- make it generic, or maybe use maxLRVW(16) is also OK for non-MX F8
-          if isaInfoMap[isa].asmCaps["HasWMMA_V3"] and state["ProblemType"]["DataType"].is8bitFloat():
-            maxLRVW = 8
           if state["TransposeLDS"] and (not state["DirectToLds"]):
             state["LocalReadVectorWidth"] = maxLRVW
           else:
             state["LocalReadVectorWidth"] = min(state["MIInputPerThread"], maxLRVW)
           assert state["LocalReadVectorWidth"] <= maxLRVW, "# bytes of lrvw > 32"
         else:
+          if isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
+            if state["LocalReadVectorWidth"] != maxLRVW:
+              reject(state, printRejectionReason, f"gfx1250 requires lrvw == {maxLRVW} for datatype {state["ProblemType"]["DataType"]}, actual value: {state["LocalReadVectorWidth"]}")
           if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
             if state["LocalReadVectorWidth"] < state["MIInputPerThread"] // 2:
               reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"] // 2))
