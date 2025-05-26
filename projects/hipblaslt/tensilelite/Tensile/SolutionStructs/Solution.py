@@ -1739,7 +1739,7 @@ class Solution(collections.abc.Mapping):
         else:
           if isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
             if state["LocalReadVectorWidth"] != maxLRVW:
-              reject(state, printRejectionReason, f"gfx1250 requires lrvw == {maxLRVW} for datatype {state["ProblemType"]["DataType"]}, actual value: {state["LocalReadVectorWidth"]}")
+              reject(state, printRejectionReason, f"gfx1250 requires lrvw == {maxLRVW} for datatype {state['ProblemType']['DataType']}, actual value: {state['LocalReadVectorWidth']}")
           if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["DataType"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
             if state["LocalReadVectorWidth"] < state["MIInputPerThread"] // 2:
               reject(state, printRejectionReason, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"] // 2))
