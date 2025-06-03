@@ -47,6 +47,8 @@
 #include <Tensile/DataTypes_Int8.hpp>
 #include <Tensile/DataTypes_Int8x4.hpp>
 #include <Tensile/DataTypes_XFloat32.hpp>
+#include <Tensile/DataTypes_Float6.hpp>
+#include <Tensile/DataTypes_BFloat6.hpp>
 #include <Tensile/DataTypes_Float4.hpp>
 
 namespace rocisa
@@ -297,6 +299,18 @@ namespace TensileLite
     {
     };
 
+#ifdef TENSILE_USE_FP6
+    template <>
+    struct TypeInfo<Float6x32> : public BaseTypeInfo<Float6x32, rocisa::DataType::Float6, 32, false, false>
+    {
+    };
+#endif // #ifdef TENSILE_USE_FP6
+#ifdef TENSILE_USE_BF6
+    template <>
+    struct TypeInfo<BFloat6x32> : public BaseTypeInfo<BFloat6x32, rocisa::DataType::BFloat6, 32, false, false>
+    {
+    };
+#endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
     template <>
     struct TypeInfo<Float4x2> : public BaseTypeInfo<Float4x2, rocisa::DataType::Float4, 2, false, false>
@@ -319,6 +333,12 @@ namespace TensileLite
                                          Float8_fnuz,
                                          BFloat8_fnuz,
                                          int8_t
+#ifdef TENSILE_USE_FP6
+                                       , Float6x32
+#endif // #ifdef TENSILE_USE_FP6
+#ifdef TENSILE_USE_BF6
+                                       , BFloat6x32
+#endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
                                        , Float4x2
 #endif // #ifdef TENSILE_USE_FP4
@@ -361,6 +381,38 @@ namespace TensileLite
             throw std::runtime_error("Unsupported variant cast type.");
         }
     }
+
+#ifdef TENSILE_USE_FP6
+    // Convert variants to type T
+    template <typename T>
+    typename std::enable_if<std::is_same<Float6x32, T>::value, T>::type
+        constVariantCast(const ConstantVariant& val)
+    {
+        switch(val.index())
+        {
+        case static_cast<int>(rocisa::DataType::Float6):
+            return static_cast<T>(*std::get_if<Float6x32>(&val));
+        default:
+            throw std::runtime_error("Unsupported variant cast type.");
+        }
+    }
+#endif // #ifdef TENSILE_USE_FP6
+
+#ifdef TENSILE_USE_BF6
+    // Convert variants to type T
+    template <typename T>
+    typename std::enable_if<std::is_same<BFloat6x32, T>::value, T>::type
+        constVariantCast(const ConstantVariant& val)
+    {
+        switch(val.index())
+        {
+        case static_cast<int>(rocisa::DataType::BFloat6):
+            return static_cast<T>(*std::get_if<BFloat6x32>(&val));
+        default:
+            throw std::runtime_error("Unsupported variant cast type.");
+        }
+    }
+#endif // #ifdef TENSILE_USE_BF6
 
 #ifdef TENSILE_USE_FP4
     // Convert variants to type T
