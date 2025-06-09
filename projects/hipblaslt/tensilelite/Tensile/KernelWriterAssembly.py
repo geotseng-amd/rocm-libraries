@@ -6597,7 +6597,7 @@ class KernelWriterAssembly(KernelWriter):
                 elif is_wmma_v3:
                   vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPB["bpe"] * 8)
                   multiplyBy = vgprLayout[-1]
-                elif vgprPerInputA == 8 and not is_wmma_v2:
+                elif vgprPerInputB == 8 and not is_wmma_v2:
                   multiplyBy = numMIInput//2
                 shiftK.add(vectorStaticMultiply(vgpr(kReg_first), vgpr(kReg_first), multiplyBy, tmpSgprInfo))
                 shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), 0, ""))
