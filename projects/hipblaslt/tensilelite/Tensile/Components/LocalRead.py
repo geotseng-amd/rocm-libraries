@@ -609,7 +609,6 @@ class LocalReadMFMA(LocalRead):
 
                         for oIdx in range(0, numOffsets):
                             offset_val = (eIdx + (vIdx * numOffsets + oIdx) * MIWaveGroupShape[tile01]) * tileStride
-    
                             if kernel["ProblemType"]["Sparse"] != 0:
                                 if blocksPerTGroupSMFMA > 1:
                                     blockId = (rIdx * numElementPerRead) // elementsPerBlockSMFMA  # block 0 or block 1
