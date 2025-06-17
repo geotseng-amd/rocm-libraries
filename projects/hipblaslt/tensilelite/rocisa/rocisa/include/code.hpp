@@ -110,8 +110,8 @@ namespace rocisa
             t += "\n";
             if(getAsmCaps()["HasVgprMSB"])
             {
-                rocIsa::getInstance().setVgprMsb(0);
-                t += "s_set_vgpr_msb 0\n";
+                // set to undefined value
+                rocIsa::getInstance().setVgprMsb(-1);
             }
             return t;
         }

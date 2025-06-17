@@ -197,11 +197,9 @@ namespace rocisa
             for(int i=0; i<srcs.size(); i++){
                 if(std::holds_alternative<std::shared_ptr<Container>>(srcs[i]) && std::get<std::shared_ptr<Container>>(srcs[i]) != nullptr){
                     auto gpr = dynamic_cast<RegisterContainer*>(std::get<std::shared_ptr<Container>>(srcs[i]).get());
-                    if(gpr){
-                        if(gpr->regType == "v"){
-                            msbSrc[i] = gpr->msb;
-                            hasVgpr = true;
-                        }
+                    if(gpr && gpr->regType == "v"){
+                        msbSrc[i] = gpr->msb;
+                        hasVgpr = true;
                     }
                 }
             }
@@ -209,19 +207,13 @@ namespace rocisa
             if(dst){
                 std::string s = dst->toString();
                 auto gpr = dynamic_cast<RegisterContainer*>(dst.get());
-                if(gpr){
-                    if(gpr->regType == "v"){
-                        msbDst = gpr->msb;
-                        hasVgpr = true;
-                    }
+                if(gpr && gpr->regType == "v"){
+                    msbDst = gpr->msb;
+                    hasVgpr = true;
                 }
             }
             int setVal = msbSrc[0] + (msbSrc[1] << 2) + (msbSrc[2] << 4) + (msbDst << 6);
-            if(outputInlineAsm){
-                // workaround for inline asm. see kernels.cpp
-                kStr = "\"s_set_vgpr_msb " + std::to_string(setVal) + "\\n\\t\"\n" + kStr;
-            }
-            else if(hasVgpr && setVal != getVgprMsb()){
+            if(hasVgpr && setVal != getVgprMsb() && !outputInlineAsm){
                 kStr = "s_set_vgpr_msb " + std::to_string(setVal) + "\n" + kStr;
                 rocIsa::getInstance().setVgprMsb(setVal);
             }
