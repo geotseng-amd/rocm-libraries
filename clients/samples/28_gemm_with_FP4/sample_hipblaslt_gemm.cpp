@@ -130,22 +130,22 @@ int main()
     UnpackData(cpuB.data(), static_cast<hipblaslt_f4x2*>(runner.b), runner.n * runner.k);
     CPUMatMul(cpuR.data(), cpuA.data(), cpuB.data(), runner.m, runner.n, runner.k);
     runner.run([&runner] {
-        simpleGemm(runner.handle,
-                   HIPBLAS_OP_T,
-                   HIPBLAS_OP_N,
-                   runner.m,
-                   runner.n,
-                   runner.k,
-                   runner.batch_count,
-                   runner.alpha,
-                   runner.beta,
-                   runner.d_a,
-                   runner.d_b,
-                   runner.d_c,
-                   runner.d_d,
-                   runner.d_workspace,
-                   runner.max_workspace_size,
-                   runner.stream);
+        simpleGemmF4(runner.handle,
+                     HIPBLAS_OP_T,
+                     HIPBLAS_OP_N,
+                     runner.m,
+                     runner.n,
+                     runner.k,
+                     runner.batch_count,
+                     runner.alpha,
+                     runner.beta,
+                     runner.d_a,
+                     runner.d_b,
+                     runner.d_c,
+                     runner.d_d,
+                     runner.d_workspace,
+                     runner.max_workspace_size,
+                     runner.stream);
     });
 
     std::vector<float> gpuR(runner.m * runner.n, 0.f);
