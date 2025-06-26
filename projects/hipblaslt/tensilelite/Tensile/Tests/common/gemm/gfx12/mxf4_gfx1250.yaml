@@ -51,6 +51,8 @@ BenchmarkProblems:
       UseBias: 0
       MXBlockA: 32
       MXBlockB: 32
+      DataTypeMXSA: E8
+      DataTypeMXSB: E8
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -89,15 +91,14 @@ BenchmarkProblems:
         - StoreVectorWidth: [-1]
         - SourceSwap: [1]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [ 16 ] # no edge
-        - AssertFree1ElementMultiple: [ 16 ] # no edge
-        - AssertSummationElementMultiple: [ 128 ] # no tail
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [128, 128, 1, 512]
+          - Range: [[128], [128], [1], [1024,32,1280]]
+          - Range: [[128,2,256], [128], [1], [1024]]
+          - Range: [[128], [128,2,256], [1], [1024]]
 
   #######################################
   # NN - standard
@@ -118,6 +119,8 @@ BenchmarkProblems:
       UseBias: 0
       MXBlockA: 32
       MXBlockB: 32
+      DataTypeMXSA: E8
+      DataTypeMXSB: E8
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -157,15 +160,14 @@ BenchmarkProblems:
         - StoreVectorWidth: [-1]
         - SourceSwap: [1]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [ 16 ] # no edge
-        - AssertFree1ElementMultiple: [ 16 ] # no edge
-        - AssertSummationElementMultiple: [ 128 ] # no tail
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [128, 128, 1, 512]
+          - Range: [[128], [128], [1], [1024,32,1280]]
+          - Range: [[128,2,256], [128], [1], [1024]]
+          - Range: [[128], [128,2,256], [1], [1024]]
 
   #######################################
   # NT - standard
@@ -186,6 +188,8 @@ BenchmarkProblems:
       UseBias: 0
       MXBlockA: 32
       MXBlockB: 32
+      DataTypeMXSA: E8
+      DataTypeMXSB: E8
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -225,15 +229,14 @@ BenchmarkProblems:
         - StoreVectorWidth: [-1]
         - SourceSwap: [1]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [ 16 ] # no edge
-        - AssertFree1ElementMultiple: [ 16 ] # no edge
-        - AssertSummationElementMultiple: [ 128 ] # no tail
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [128, 128, 1, 512]
+          - Range: [[128], [128], [1], [1024,32,1280]]
+          - Range: [[128,2,256], [128], [1], [1024]]
+          - Range: [[128], [128,2,256], [1], [1024]]
 
   #######################################
   # TT - standard
@@ -254,6 +257,8 @@ BenchmarkProblems:
       UseBias: 0
       MXBlockA: 32
       MXBlockB: 32
+      DataTypeMXSA: E8
+      DataTypeMXSB: E8
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -293,12 +298,11 @@ BenchmarkProblems:
         - StoreVectorWidth: [-1]
         - SourceSwap: [1]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [ 16 ] # no edge
-        - AssertFree1ElementMultiple: [ 16 ] # no edge
-        - AssertSummationElementMultiple: [ 128 ] # no tail
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [128, 128, 1, 512]
+          - Range: [[128], [128], [1], [1024,32,1280]]
+          - Range: [[128,2,256], [128], [1], [1024]]
+          - Range: [[128], [128,2,256], [1], [1024]]
