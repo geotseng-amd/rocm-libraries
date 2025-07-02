@@ -66,7 +66,7 @@ namespace rocisa
  */
 
     std::string   TypeAbbrev(rocisa::DataType d);
-    float        GetElementSize(rocisa::DataType d);
+    float         GetElementSize(rocisa::DataType d);
     std::ostream& operator<<(std::ostream& stream, rocisa::DataType const& t);
     std::istream& operator>>(std::istream& stream, rocisa::DataType& t);
 
@@ -89,7 +89,7 @@ namespace TensileLite
         std::string      name;
         std::string      abbrev;
 
-        float elementSize;
+        float  elementSize;
         size_t packing;
         size_t segmentSize;
 
@@ -128,7 +128,8 @@ namespace TensileLite
         constexpr static rocisa::DataType Enum = T_Enum;
 
         /// Bytes of one element.  May contain multiple segments.
-        constexpr static float ElementSize = float(sizeof(T)) / float(T_Packing);;
+        constexpr static float ElementSize = float(sizeof(T)) / float(T_Packing);
+        ;
         /// Segments per element.
         constexpr static size_t Packing = T_Packing;
         /// Bytes per segment.
@@ -301,19 +302,22 @@ namespace TensileLite
 
 #ifdef TENSILE_USE_FP6
     template <>
-    struct TypeInfo<Float6x32> : public BaseTypeInfo<Float6x32, rocisa::DataType::Float6, 32, false, false>
+    struct TypeInfo<Float6x16>
+        : public BaseTypeInfo<Float6x16, rocisa::DataType::Float6, 16, false, false>
     {
     };
 #endif // #ifdef TENSILE_USE_FP6
 #ifdef TENSILE_USE_BF6
     template <>
-    struct TypeInfo<BFloat6x32> : public BaseTypeInfo<BFloat6x32, rocisa::DataType::BFloat6, 32, false, false>
+    struct TypeInfo<BFloat6x16>
+        : public BaseTypeInfo<BFloat6x16, rocisa::DataType::BFloat6, 16, false, false>
     {
     };
 #endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
     template <>
-    struct TypeInfo<Float4x2> : public BaseTypeInfo<Float4x2, rocisa::DataType::Float4, 2, false, false>
+    struct TypeInfo<Float4x2>
+        : public BaseTypeInfo<Float4x2, rocisa::DataType::Float4, 2, false, false>
     {
     };
 #endif // #ifdef TENSILE_USE_FP4
@@ -334,15 +338,18 @@ namespace TensileLite
                                          BFloat8_fnuz,
                                          int8_t
 #ifdef TENSILE_USE_FP6
-                                       , Float6x32
+                                         ,
+                                         Float6x16
 #endif // #ifdef TENSILE_USE_FP6
 #ifdef TENSILE_USE_BF6
-                                       , BFloat6x32
+                                         ,
+                                         BFloat6x16
 #endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
-                                       , Float4x2
+                                         ,
+                                         Float4x2
 #endif // #ifdef TENSILE_USE_FP4
-                                        >;
+                                         >;
 
     // Convert variants to type T
     template <typename T>
@@ -385,13 +392,13 @@ namespace TensileLite
 #ifdef TENSILE_USE_FP6
     // Convert variants to type T
     template <typename T>
-    typename std::enable_if<std::is_same<Float6x32, T>::value, T>::type
+    typename std::enable_if<std::is_same<Float6x16, T>::value, T>::type
         constVariantCast(const ConstantVariant& val)
     {
         switch(val.index())
         {
         case static_cast<int>(rocisa::DataType::Float6):
-            return static_cast<T>(*std::get_if<Float6x32>(&val));
+            return static_cast<T>(*std::get_if<Float6x16>(&val));
         default:
             throw std::runtime_error("Unsupported variant cast type.");
         }
@@ -401,13 +408,13 @@ namespace TensileLite
 #ifdef TENSILE_USE_BF6
     // Convert variants to type T
     template <typename T>
-    typename std::enable_if<std::is_same<BFloat6x32, T>::value, T>::type
+    typename std::enable_if<std::is_same<BFloat6x16, T>::value, T>::type
         constVariantCast(const ConstantVariant& val)
     {
         switch(val.index())
         {
         case static_cast<int>(rocisa::DataType::BFloat6):
-            return static_cast<T>(*std::get_if<BFloat6x32>(&val));
+            return static_cast<T>(*std::get_if<BFloat6x16>(&val));
         default:
             throw std::runtime_error("Unsupported variant cast type.");
         }
