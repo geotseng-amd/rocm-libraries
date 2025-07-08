@@ -518,8 +518,9 @@ namespace TensileLite
             }
             else if(new_type == ActivationType::Clamp)
             {
-	      return static_cast<T>(
-                  std::max(static_cast<castT>(args[0]), std::min(static_cast<castT>(val), static_cast<castT>(args[1]))));
+                return static_cast<T>(
+                    std::max(static_cast<castT>(args[0]),
+                             std::min(static_cast<castT>(val), static_cast<castT>(args[1]))));
             }
             else if(new_type == ActivationType::Exp)
             {
@@ -743,7 +744,8 @@ namespace TensileLite
                   typename MathOpAccum,
                   typename AType,
                   typename BType,
-                  typename ComputeInputType
+                  typename ComputeInputTypeA,
+                  typename ComputeInputTypeB
 #if defined(TENSILE_USE_FP6) || defined(TENSILE_USE_BF6) || defined(TENSILE_USE_FP4)
                   ,
                   std::enable_if_t<true
@@ -777,90 +779,61 @@ namespace TensileLite
             AType aVal = Transform<AType>::Input(aPtr[aIdx], aConjugate);
             BType bVal = Transform<BType>::Input(bPtr[bIdx], bConjugate);
 
-            if constexpr(sizeof(typename Inputs::AType) > sizeof(typename Inputs::ComputeInputType)
+            if constexpr(sizeof(typename Inputs::AType) > sizeof(typename Inputs::ComputeInputTypeA)
                          && sizeof(typename Inputs::BType)
-                                > sizeof(typename Inputs::ComputeInputType))
+                                > sizeof(typename Inputs::ComputeInputTypeB))
             {
-                if constexpr(std::is_same<Float8BFloat8, typename Inputs::ComputeInputType>::value)
-                {
-                    auto aValCast = static_cast<TensileLite::Float8>(aVal);
-                    auto bValCast = static_cast<TensileLite::BFloat8>(bVal);
-                    value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
-                }
-                else if constexpr(std::is_same<BFloat8Float8,
-                                               typename Inputs::ComputeInputType>::value)
-                {
-                    auto aValCast = static_cast<TensileLite::BFloat8>(aVal);
-                    auto bValCast = static_cast<TensileLite::Float8>(bVal);
-                    value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
-                }
-                else if constexpr(std::is_same<Float8BFloat8_fnuz,
-                                               typename Inputs::ComputeInputType>::value)
-                {
-                    auto aValCast = static_cast<TensileLite::Float8_fnuz>(aVal);
-                    auto bValCast = static_cast<TensileLite::BFloat8_fnuz>(bVal);
-                    value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
-                }
-                else if constexpr(std::is_same<BFloat8Float8_fnuz,
-                                               typename Inputs::ComputeInputType>::value)
-                {
-                    auto aValCast = static_cast<TensileLite::BFloat8_fnuz>(aVal);
-                    auto bValCast = static_cast<TensileLite::Float8_fnuz>(bVal);
-                    value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
-                }
-                else
-                {
-                    typename Inputs::ComputeInputType aValCast, bValCast;
-                    if(problem.useScaleAB() == "Scalar")
-                    {
-                        Accumulator scaleA = GetValue<Accumulator>(
-                            problem.alphaType(), inputs.scaleA, 0, aConjugate);
-                        auto tmp           = multiply<Accumulator>(aVal, scaleA);
-                        aValCast           = static_cast<typename Inputs::ComputeInputType>(tmp);
-                        Accumulator scaleB = GetValue<Accumulator>(
-                            problem.alphaType(), inputs.scaleB, 0, aConjugate);
-                        tmp      = multiply<Accumulator>(bVal, scaleB);
-                        bValCast = static_cast<typename Inputs::ComputeInputType>(tmp);
-                    }
-                    else
-                    {
-                        aValCast = static_cast<typename Inputs::ComputeInputType>(aVal);
-                        bValCast = static_cast<typename Inputs::ComputeInputType>(bVal);
-                    }
-                    value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
-                }
-            }
-            else if constexpr(sizeof(typename Inputs::AType)
-                              > sizeof(typename Inputs::ComputeInputType))
-            {
-                typename Inputs::ComputeInputType aValCast;
+                ComputeInputTypeA aValCast;
+                ComputeInputTypeB bValCast;
                 if(problem.useScaleAB() == "Scalar")
                 {
                     Accumulator scaleA
                         = GetValue<Accumulator>(problem.alphaType(), inputs.scaleA, 0, aConjugate);
                     auto tmp = multiply<Accumulator>(aVal, scaleA);
-                    aValCast = static_cast<typename Inputs::ComputeInputType>(tmp);
+                    aValCast = static_cast<ComputeInputTypeA>(tmp);
+                    Accumulator scaleB
+                        = GetValue<Accumulator>(problem.alphaType(), inputs.scaleB, 0, aConjugate);
+                    tmp      = multiply<Accumulator>(bVal, scaleB);
+                    bValCast = static_cast<ComputeInputTypeB>(tmp);
                 }
                 else
                 {
-                    aValCast = static_cast<typename Inputs::ComputeInputType>(aVal);
+                    aValCast = static_cast<ComputeInputTypeA>(aVal);
+                    bValCast = static_cast<ComputeInputTypeB>(bVal);
+                }
+                value += multiply<Accumulator, MathOpAccum>(aValCast, bValCast);
+            }
+            else if constexpr(sizeof(typename Inputs::AType)
+                              > sizeof(typename Inputs::ComputeInputTypeA))
+            {
+                ComputeInputTypeA aValCast;
+                if(problem.useScaleAB() == "Scalar")
+                {
+                    Accumulator scaleA
+                        = GetValue<Accumulator>(problem.alphaType(), inputs.scaleA, 0, aConjugate);
+                    auto tmp = multiply<Accumulator>(aVal, scaleA);
+                    aValCast = static_cast<ComputeInputTypeA>(tmp);
+                }
+                else
+                {
+                    aValCast = static_cast<ComputeInputTypeA>(aVal);
                 }
                 value += multiply<Accumulator, MathOpAccum>(aValCast, bVal);
             }
             else if constexpr(sizeof(typename Inputs::BType)
-                              > sizeof(typename Inputs::ComputeInputType))
+                              > sizeof(typename Inputs::ComputeInputTypeB))
             {
-                typename Inputs::ComputeInputType bValCast;
+                ComputeInputTypeB bValCast;
                 if(problem.useScaleAB() == "Scalar")
                 {
                     Accumulator scaleB
                         = GetValue<Accumulator>(problem.alphaType(), inputs.scaleB, 0, aConjugate);
                     auto tmp = multiply<Accumulator>(bVal, scaleB);
-                    bValCast = static_cast<typename Inputs::ComputeInputType>(tmp);
+                    bValCast = static_cast<ComputeInputTypeB>(tmp);
                 }
                 else
                 {
-                    bValCast = static_cast<typename Inputs::ComputeInputType>(bVal);
+                    bValCast = static_cast<ComputeInputTypeB>(bVal);
                 }
                 value += multiply<Accumulator, MathOpAccum>(aVal, bValCast);
             }
@@ -878,7 +851,8 @@ namespace TensileLite
                   typename MathOpAccum,
                   typename AType,
                   typename BType,
-                  typename ComputeInputType,
+                  typename ComputeInputTypeA,
+                  typename ComputeInputTypeB,
                   std::enable_if_t<false
 #ifdef TENSILE_USE_FP6
                                        || (std::is_same<Float6x16, AType>::value
@@ -1119,7 +1093,8 @@ namespace TensileLite
                                 val += multiply<Inputs, Accumulator, MathOpAccum,
                                                   typename Inputs::AType,
                                                   typename Inputs::BType,
-                                                  typename Inputs::ComputeInputType>(
+                                                  typename Inputs::ComputeInputTypeA,
+                                                  typename Inputs::ComputeInputTypeB>(
                                     problem, inputs, aPtr, bPtr, aIdx, bIdx, aConjugate, bConjugate);
                             }
 
@@ -1144,13 +1119,13 @@ namespace TensileLite
                     }
                 }
 
-                auto cIndex = c.index(cCoord);
-                auto dIndex = d.index(dCoord);
+                    auto cIndex = c.index(cCoord);
+                    auto dIndex = d.index(dCoord);
 
-                // Ensure zero*nan returns zero
-                Accumulator alpha = constVariantCast<Accumulator>(inputs.alpha);
-                Accumulator beta  = constVariantCast<Accumulator>(inputs.beta);
-                auto        zero  = static_cast<Accumulator>(0);
+                    // Ensure zero*nan returns zero
+                    Accumulator alpha = constVariantCast<Accumulator>(inputs.alpha);
+                    Accumulator beta  = constVariantCast<Accumulator>(inputs.beta);
+                    auto        zero  = static_cast<Accumulator>(0);
 
                 if(problem.useScaleAB() == "Scalar")
                 {
@@ -1159,11 +1134,11 @@ namespace TensileLite
                     Accumulator scaleB
                         = GetValue<Accumulator>(problem.alphaType(), inputs.scaleB, 0, aConjugate);
                     if constexpr(sizeof(typename Inputs::AType)
-                                 <= sizeof(typename Inputs::ComputeInputType))
+                                 <= sizeof(typename Inputs::ComputeInputTypeA))
                         alpha *= scaleA;
 
                     if constexpr(sizeof(typename Inputs::BType)
-                                 <= sizeof(typename Inputs::ComputeInputType))
+                                 <= sizeof(typename Inputs::ComputeInputTypeB))
                         alpha *= scaleB;
                 }
                 else if(problem.useScaleAB() == "Vector")
@@ -1175,217 +1150,219 @@ namespace TensileLite
                     Accumulator scaleB = GetValue<Accumulator>(
                         problem.alphaType(), inputs.scaleB, posB, aConjugate);
                     if constexpr(sizeof(typename Inputs::AType)
-                                 <= sizeof(typename Inputs::ComputeInputType))
+                                 <= sizeof(typename Inputs::ComputeInputTypeA))
                         alpha *= scaleA;
 
                     if constexpr(sizeof(typename Inputs::BType)
-                                 <= sizeof(typename Inputs::ComputeInputType))
+                                 <= sizeof(typename Inputs::ComputeInputTypeB))
                         alpha *= scaleB;
                 }
 
-                auto resultD = multiply<Accumulator>(alpha, value);
+                    auto resultD = multiply<Accumulator>(alpha, value);
 
-                if(problem.useScaleAlphaVec())
-                {
-                    int pos = 0;
-                    if(problem.getParams().factorDim())
-                        pos = int(int(dNum / problem.d().sizes()[0]) % problem.d().sizes()[1]);
-                    else
-                        pos = int(dNum % problem.d().sizes()[0]);
-                    Accumulator scaleAlphaVec = GetValue<Accumulator>(
-                        problem.alphaType(), inputs.scaleAlphaVec, pos, aConjugate);
-                    resultD *= scaleAlphaVec;
-                }
-
-                if(beta != zero)
-                {
-                    Accumulator cValue = multiply<Accumulator>(beta, cPtr[cIndex]);
-                    if(problem.useScaleCD())
+                    if(problem.useScaleAlphaVec())
                     {
-                        Accumulator scaleC = GetValue<Accumulator>(
-                            problem.betaType(), inputs.scaleC, 0, aConjugate);
-                        cValue *= scaleC;
+                        int pos = 0;
+                        if(problem.getParams().factorDim())
+                            pos = int(int(dNum / problem.d().sizes()[0]) % problem.d().sizes()[1]);
+                        else
+                            pos = int(dNum % problem.d().sizes()[0]);
+                        Accumulator scaleAlphaVec = GetValue<Accumulator>(
+                            problem.alphaType(), inputs.scaleAlphaVec, pos, aConjugate);
+                        resultD *= scaleAlphaVec;
                     }
 
-                    resultD += cValue;
-                }
+                    if(beta != zero)
+                    {
+                        Accumulator cValue = multiply<Accumulator>(beta, cPtr[cIndex]);
+                        if(problem.useScaleCD())
+                        {
+                            Accumulator scaleC = GetValue<Accumulator>(
+                                problem.betaType(), inputs.scaleC, 0, aConjugate);
+                            cValue *= scaleC;
+                        }
 
-                // bias
-                if(problem.useBias() && inputs.bias && !problem.useGradient())
-                {
-                    auto biasIndex = problem.bias().index(biasCoord);
-                    int  pos       = 0;
-                    if(problem.getParams().factorDim())
-                        pos = int(int(dNum / problem.d().sizes()[0]) % problem.d().sizes()[1])
-                              + biasIndex;
-                    else
-                        pos = int(dNum % problem.d().sizes()[0]) + biasIndex;
-                    Accumulator bias = GetValue<Accumulator>(
-                        problem.bias().dataType(), inputs.bias, pos, aConjugate);
-                    resultD += bias;
-                }
-                // E
-                if(problem.useE() && !problem.useGradient())
-                {
-                    auto eIndex
-                        = problem.tensors()[ContractionProblemGemm::TENSOR::E].index(dCoord);
-                    SetValue<Accumulator>(
-                        problem.tensors()[ContractionProblemGemm::TENSOR::E].dataType(),
-                        resultD,
-                        inputs.e,
-                        eIndex);
-                }
-                // Activation adds here
-                std::vector<Accumulator> actArgs;
-                for(int i = 0; i < inputs.activationArgs.size(); i++)
-                    actArgs.push_back(constVariantCast<Accumulator>(inputs.activationArgs[i]));
-                if(problem.useGradient() && problem.activationType() != ActivationType::None
-                   && problem.getParams().activationEnum() != ActivationType::None)
-                {
-                    Accumulator dataE = static_cast<Accumulator>(0);
-                    if(problem.useE())
+                        resultD += cValue;
+                    }
+
+                    // bias
+                    if(problem.useBias() && inputs.bias && !problem.useGradient())
+                    {
+                        auto biasIndex = problem.bias().index(biasCoord);
+                        int  pos       = 0;
+                        if(problem.getParams().factorDim())
+                            pos = int(int(dNum / problem.d().sizes()[0]) % problem.d().sizes()[1])
+                                  + biasIndex;
+                        else
+                            pos = int(dNum % problem.d().sizes()[0]) + biasIndex;
+                        Accumulator bias = GetValue<Accumulator>(
+                            problem.bias().dataType(), inputs.bias, pos, aConjugate);
+                        resultD += bias;
+                    }
+                    // E
+                    if(problem.useE() && !problem.useGradient())
                     {
                         auto eIndex
                             = problem.tensors()[ContractionProblemGemm::TENSOR::E].index(dCoord);
-                        dataE = GetValue<Accumulator>(
+                        SetValue<Accumulator>(
                             problem.tensors()[ContractionProblemGemm::TENSOR::E].dataType(),
+                            resultD,
                             inputs.e,
-                            eIndex,
-                            aConjugate);
+                            eIndex);
                     }
-                    dataE = Activation(problem.activationType(),
-                                       dataE,
-                                       problem.getParams().activationEnum(),
-                                       actArgs);
-                    resultD *= dataE;
-                }
-                else
-                {
-                    resultD = Activation(problem.activationType(),
-                                         resultD,
-                                         problem.getParams().activationEnum(),
-                                         actArgs);
-                }
-
-                omp_set_num_threads(MAX_OMP_THREADS);
-#pragma omp critical
-                {
-                    if constexpr(notCmplxAmaxD)
+                    // Activation adds here
+                    std::vector<Accumulator> actArgs;
+                    for(int i = 0; i < inputs.activationArgs.size(); i++)
+                        actArgs.push_back(constVariantCast<Accumulator>(inputs.activationArgs[i]));
+                    if(problem.useGradient() && problem.activationType() != ActivationType::None
+                       && problem.getParams().activationEnum() != ActivationType::None)
                     {
-                        if(problem.outputAmaxD())
+                        Accumulator dataE = static_cast<Accumulator>(0);
+                        if(problem.useE())
                         {
-                            Accumulator absResultD = (resultD > zero) ? resultD : resultD * negOne;
-                            if(absResultD > amaxD)
-                                amaxD = absResultD;
+                            auto eIndex
+                                = problem.tensors()[ContractionProblemGemm::TENSOR::E].index(
+                                    dCoord);
+                            dataE = GetValue<Accumulator>(
+                                problem.tensors()[ContractionProblemGemm::TENSOR::E].dataType(),
+                                inputs.e,
+                                eIndex,
+                                aConjugate);
+                        }
+                        dataE = Activation(problem.activationType(),
+                                           dataE,
+                                           problem.getParams().activationEnum(),
+                                           actArgs);
+                        resultD *= dataE;
+                    }
+                    else
+                    {
+                        resultD = Activation(problem.activationType(),
+                                             resultD,
+                                             problem.getParams().activationEnum(),
+                                             actArgs);
+                    }
+
+                    omp_set_num_threads(MAX_OMP_THREADS);
+#pragma omp critical
+                    {
+                        if constexpr(notCmplxAmaxD)
+                        {
+                            if(problem.outputAmaxD())
+                            {
+                                Accumulator absResultD
+                                    = (resultD > zero) ? resultD : resultD * negOne;
+                                if(absResultD > amaxD)
+                                    amaxD = absResultD;
+                            }
                         }
                     }
-                }
 
-                if(problem.useScaleCD())
-                {
-                    Accumulator scaleD
-                        = GetValue<Accumulator>(problem.betaType(), inputs.scaleD, 0, aConjugate);
-                    resultD *= scaleD;
-                }
-                if(problem.useBias() && problem.useGradient()
-                   && (problem.biasSrc() == ContractionProblemGemm::D))
-                {
-                    ws[dIndex] = resultD;
-                }
-                dPtr[dIndex] = SaturateCast<typename Inputs::DType>(resultD);
-            }
-
-            if(problem.outputAmaxD())
-            {
-                SetValue<Accumulator>(
-                    problem.tensors()[ContractionProblemGemm::TENSOR::AMAXD].dataType(),
-                    amaxD,
-                    inputs.amaxD,
-                    0);
-            }
-
-            if(problem.useGradient() && problem.useBias())
-            {
-                auto& biasTensor = problem.tensor(ContractionProblemGemm::TENSOR::BIAS);
-                if(problem.biasSrc() == ContractionProblemGemm::D)
-                {
-                    auto msg = ReductionCPU<Accumulator, Accumulator>(
-                        biasTensor, d, ws, inputs, elementsToValidate, 1);
-                    if(!msg.empty())
+                    if(problem.useScaleCD())
                     {
-                        free(ws);
-                        std::runtime_error(msg.c_str());
+                        Accumulator scaleD = GetValue<Accumulator>(
+                            problem.betaType(), inputs.scaleD, 0, aConjugate);
+                        resultD *= scaleD;
+                    }
+                    if(problem.useBias() && problem.useGradient()
+                       && (problem.biasSrc() == ContractionProblemGemm::D))
+                    {
+                        ws[dIndex] = resultD;
+                    }
+                    dPtr[dIndex] = SaturateCast<typename Inputs::DType>(resultD);
+                }
+
+                if(problem.outputAmaxD())
+                {
+                    SetValue<Accumulator>(
+                        problem.tensors()[ContractionProblemGemm::TENSOR::AMAXD].dataType(),
+                        amaxD,
+                        inputs.amaxD,
+                        0);
+                }
+
+                if(problem.useGradient() && problem.useBias())
+                {
+                    auto& biasTensor = problem.tensor(ContractionProblemGemm::TENSOR::BIAS);
+                    if(problem.biasSrc() == ContractionProblemGemm::D)
+                    {
+                        auto msg = ReductionCPU<Accumulator, Accumulator>(
+                            biasTensor, d, ws, inputs, elementsToValidate, 1);
+                        if(!msg.empty())
+                        {
+                            free(ws);
+                            std::runtime_error(msg.c_str());
+                        }
+                    }
+                    else if(problem.biasSrc() == ContractionProblemGemm::A)
+                    {
+                        auto reducIdx = problem.transA() ? 0 : 1;
+                        auto msg      = ReductionCPU<typename Inputs::AType, Accumulator>(
+                            biasTensor, a, inputs.a, inputs, elementsToValidate, reducIdx);
+                        if(!msg.empty())
+                        {
+                            std::runtime_error(msg.c_str());
+                        }
+                    }
+                    else if(problem.biasSrc() == ContractionProblemGemm::B)
+                    {
+                        auto reducIdx = problem.transB() ? 1 : 0;
+                        auto msg      = ReductionCPU<typename Inputs::BType, Accumulator>(
+                            biasTensor, b, inputs.b, inputs, elementsToValidate, reducIdx);
+                        if(!msg.empty())
+                        {
+                            std::runtime_error(msg.c_str());
+                        }
+                    }
+                    else
+                    {
+                        std::string msg = "Unsupported bias reduction source "
+                                          + std::to_string(problem.biasSrc()) + ".";
+                        throw std::runtime_error(msg.c_str());
+                    }
+                    free(ws);
+                }
+            }
+
+            template <typename Inputs, typename Accumulator, typename MathOpAccum>
+            void ReferenceSolution<Inputs, Accumulator, MathOpAccum>::SolveCPU(
+                ContractionProblemGroupedGemm const& problem,
+                ContractionGroupedInputs const&      inputs,
+                size_t                               elementsToValidate)
+            {
+                for(int idx = 0; idx < problem.gemms.size(); idx++)
+                {
+                    ReferenceSolution<Inputs, Accumulator, MathOpAccum>::SolveCPU(
+                        problem.gemms[idx], inputs.grouped[idx], elementsToValidate);
+                }
+            }
+
+            uint64_t getInputContractionInputsTypeId(ContractionProblemGemm const& problem)
+            {
+                // retreive alpha/beta type set via setAlpha/BetaType()
+                auto alphaType = problem.alphaType();
+                auto betaType  = problem.betaType();
+
+                // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
+                // Could remove after rocBLAS is updated
+                if(alphaType == rocisa::DataType::None)
+                {
+                    alphaType = problem.a().dataType() == rocisa::DataType::BFloat16
+                                    ? rocisa::DataType::Float
+                                    : problem.d().dataType();
+                }
+                if(betaType == rocisa::DataType::None)
+                {
+                    betaType = alphaType;
+                }
+
+                if(problem.useE())
+                {
+                    if(alphaType != betaType)
+                    {
+                        throw std::runtime_error("Alpha type and beta type must be the same.");
                     }
                 }
-                else if(problem.biasSrc() == ContractionProblemGemm::A)
-                {
-                    auto reducIdx = problem.transA() ? 0 : 1;
-                    auto msg      = ReductionCPU<typename Inputs::AType, Accumulator>(
-                        biasTensor, a, inputs.a, inputs, elementsToValidate, reducIdx);
-                    if(!msg.empty())
-                    {
-                        std::runtime_error(msg.c_str());
-                    }
-                }
-                else if(problem.biasSrc() == ContractionProblemGemm::B)
-                {
-                    auto reducIdx = problem.transB() ? 1 : 0;
-                    auto msg      = ReductionCPU<typename Inputs::BType, Accumulator>(
-                        biasTensor, b, inputs.b, inputs, elementsToValidate, reducIdx);
-                    if(!msg.empty())
-                    {
-                        std::runtime_error(msg.c_str());
-                    }
-                }
-                else
-                {
-                    std::string msg = "Unsupported bias reduction source "
-                                      + std::to_string(problem.biasSrc()) + ".";
-                    throw std::runtime_error(msg.c_str());
-                }
-                free(ws);
-            }
-        }
-
-        template <typename Inputs, typename Accumulator, typename MathOpAccum>
-        void ReferenceSolution<Inputs, Accumulator, MathOpAccum>::SolveCPU(
-            ContractionProblemGroupedGemm const& problem,
-            ContractionGroupedInputs const&      inputs,
-            size_t                               elementsToValidate)
-        {
-            for(int idx = 0; idx < problem.gemms.size(); idx++)
-            {
-                ReferenceSolution<Inputs, Accumulator, MathOpAccum>::SolveCPU(
-                    problem.gemms[idx], inputs.grouped[idx], elementsToValidate);
-            }
-        }
-
-        uint64_t getInputContractionInputsTypeId(ContractionProblemGemm const& problem)
-        {
-            // retreive alpha/beta type set via setAlpha/BetaType()
-            auto alphaType = problem.alphaType();
-            auto betaType  = problem.betaType();
-
-            // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
-            // Could remove after rocBLAS is updated
-            if(alphaType == rocisa::DataType::None)
-            {
-                alphaType = problem.a().dataType() == rocisa::DataType::BFloat16
-                                ? rocisa::DataType::Float
-                                : problem.d().dataType();
-            }
-            if(betaType == rocisa::DataType::None)
-            {
-                betaType = alphaType;
-            }
-
-            if(problem.useE())
-            {
-                if(alphaType != betaType)
-                {
-                    throw std::runtime_error("Alpha type and beta type must be the same.");
-                }
-            }
 
             return TensileLite::GemmTypeId(problem.a().dataType(),
                                            problem.b().dataType(),
@@ -1393,589 +1370,596 @@ namespace TensileLite
                                            problem.d().dataType(),
                                            alphaType,
                                            betaType,
-                                           problem.computeInputType());
+                                           problem.computeInputTypeA(),
+                                           problem.computeInputTypeB());
         }
 
-        template <typename Problem, typename Inputs>
-        void SolveCPUTemplates(uint64_t const& contractionInputsTypeId,
-                               Problem const&  problem,
-                               Inputs const&   inputs,
-                               size_t          elementsToValidate)
-        {
-            bool isHPA = false;
-            if constexpr(std::is_same<ContractionProblemGemm, Problem>::value)
+            template <typename Problem, typename Inputs>
+            void SolveCPUTemplates(uint64_t const& contractionInputsTypeId,
+                                   Problem const&  problem,
+                                   Inputs const&   inputs,
+                                   size_t          elementsToValidate)
             {
-                isHPA = problem.highPrecisionAccumulate();
-            }
-            else if constexpr(std::is_same<ContractionProblemGroupedGemm, Problem>::value)
-            {
-                isHPA = problem.gemms[0].highPrecisionAccumulate();
-            }
+                bool isHPA = false;
+                if constexpr(std::is_same<ContractionProblemGemm, Problem>::value)
+                {
+                    isHPA = problem.highPrecisionAccumulate();
+                }
+                else if constexpr(std::is_same<ContractionProblemGroupedGemm, Problem>::value)
+                {
+                    isHPA = problem.gemms[0].highPrecisionAccumulate();
+                }
 
-            switch(contractionInputsTypeId)
-            {
-            case TypedGemm_S_S_S::TypeId():
-            {
-                if(problem.f32XdlMathOp() == rocisa::DataType::XFloat32)
-                    return ReferenceSolution<TypedGemm_S_S_S, float, XFloat32>::SolveCPU(
+                switch(contractionInputsTypeId)
+                {
+                case TypedGemm_S_S_S::TypeId():
+                {
+                    if(problem.f32XdlMathOp() == rocisa::DataType::XFloat32)
+                        return ReferenceSolution<TypedGemm_S_S_S, float, XFloat32>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    else
+                        return ReferenceSolution<TypedGemm_S_S_S>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_D_D_D::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_D_D_D>::SolveCPU(
                         problem, inputs, elementsToValidate);
-                else
-                    return ReferenceSolution<TypedGemm_S_S_S>::SolveCPU(
+                }
+                case TypedGemm_C_C_C::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_C_C_C>::SolveCPU(
                         problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_D_D_D::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_D_D_D>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_C_C_C::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_C_C_C>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_Z_Z_Z::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_Z_Z_Z>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                }
+                case TypedGemm_Z_Z_Z::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_Z_Z_Z>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #ifdef TENSILE_USE_HALF
-            case TypedGemm_H_H_H::TypeId():
-            {
-                if(isHPA)
+                case TypedGemm_H_H_H::TypeId():
                 {
-                    return ReferenceSolution<TypedGemm_H_H_H, float>::SolveCPU(
+                    if(isHPA)
+                    {
+                        return ReferenceSolution<TypedGemm_H_H_H, float>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                    else
+                    {
+                        return ReferenceSolution<TypedGemm_H_H_H>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                }
+                case TypedGemm_H_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_S_S>::SolveCPU(
                         problem, inputs, elementsToValidate);
                 }
-                else
+                case TypedGemm_H_H_S::TypeId():
                 {
-                    return ReferenceSolution<TypedGemm_H_H_H>::SolveCPU(
+                    return ReferenceSolution<TypedGemm_H_H_S, float>::SolveCPU(
                         problem, inputs, elementsToValidate);
                 }
-            }
-            case TypedGemm_H_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_S_S>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_SH_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_SH_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HS_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HS_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_SH_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_SH_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HS_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HS_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #endif // TENSILE_USE_HALF
-            case TypedGemm_I8x4_I32_I32::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8x4_I32_I32>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I32_I32_I32::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I32_I32_I32>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I8_I8_I32::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_I8_I32, int32_t>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I8_I32_I32::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_I32_I32>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I8_I32_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_I32_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I8_I8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_I8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_I8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_I8x4_I32_I32::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8x4_I32_I32>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I32_I32_I32::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I32_I32_I32>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I8_I8_I32::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_I8_I32, int32_t>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I8_I32_I32::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_I32_I32>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I8_I32_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_I32_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I8_I8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_I8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_I8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #ifdef TENSILE_USE_BF16
-            case TypedGemm_B_B_S::TypeId():
-            {
-                if(isHPA)
+                case TypedGemm_B_B_S::TypeId():
                 {
-                    return ReferenceSolution<TypedGemm_B_B_S, float>::SolveCPU(
+                    if(isHPA)
+                    {
+                        return ReferenceSolution<TypedGemm_B_B_S, float>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                    else
+                    {
+                        return ReferenceSolution<TypedGemm_B_B_S>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                }
+                case TypedGemm_B_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B_S_S>::SolveCPU(
                         problem, inputs, elementsToValidate);
                 }
-                else
+                case TypedGemm_H_B_H_S::TypeId():
                 {
-                    return ReferenceSolution<TypedGemm_B_B_S>::SolveCPU(
+                    if(isHPA)
+                    {
+                        return ReferenceSolution<TypedGemm_H_B_H_S, float>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                    else
+                    {
+                        return ReferenceSolution<TypedGemm_H_B_H_S>::SolveCPU(
+                            problem, inputs, elementsToValidate);
+                    }
+                }
+                case TypedGemm_I8_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_I8_B_S, float>::SolveCPU(
                         problem, inputs, elementsToValidate);
                 }
-            }
-            case TypedGemm_B_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B_S_S>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_B_H_S::TypeId():
-            {
-                if(isHPA)
-                {
-                    return ReferenceSolution<TypedGemm_H_B_H_S, float>::SolveCPU(
-                        problem, inputs, elementsToValidate);
-                }
-                else
-                {
-                    return ReferenceSolution<TypedGemm_H_B_H_S>::SolveCPU(
-                        problem, inputs, elementsToValidate);
-                }
-            }
-            case TypedGemm_I8_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_I8_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
 #endif // TENSILE_USE_BF16
 #ifdef TENSILE_USE_FP8_BF8
-            case TypedGemm_F8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8_F8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8_F8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8_B8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8_B8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8_F8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8_F8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8_B8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8_B8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            // hybrid
-            case TypedGemm_F8B8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8_F8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8_F8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8_B8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8_B8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8_F8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8_F8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8_B8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8_B8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_F8B8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_F8B8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_B8F8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_B8F8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_F8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8_F8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8_F8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8_B8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8_B8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8_F8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8_F8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8_B8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8_B8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                // hybrid
+                case TypedGemm_F8B8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8_F8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8_F8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8_B8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8_B8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8_F8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8_F8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8_B8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8_B8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_F8B8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_F8B8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_B8F8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_B8F8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 
-            // F8 NANOO
-            case TypedGemm_F8N_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8N_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8N_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8N_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8N_F8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8N_F8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8N_B8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8N_B8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8N_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8N_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8N_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8N_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8N_F8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8N_F8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8N_B8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8N_B8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            // hybrid - NANOO
-            case TypedGemm_F8B8N_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8N_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8N_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8N_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8N_F8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8N_F8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8B8N_B8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8B8N_B8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8N_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8N_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8N_B_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8N_B_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8N_F8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8N_F8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_B8F8N_B8N_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_B8F8N_B8N_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_F8B8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_F8B8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_B8F8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_B8F8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                // F8 NANOO
+                case TypedGemm_F8N_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8N_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8N_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8N_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8N_F8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8N_F8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8N_B8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8N_B8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8N_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8N_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8N_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8N_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8N_F8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8N_F8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8N_B8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8N_B8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                // hybrid - NANOO
+                case TypedGemm_F8B8N_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8N_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8N_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8N_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8N_F8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8N_F8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8B8N_B8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8B8N_B8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8N_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8N_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8N_B_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8N_B_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8N_F8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8N_F8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F8N_B8N_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F8N_B8N_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_F8B8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_F8B8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_B8F8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_B8F8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #ifdef TENSILE_USE_HALF
-            case TypedGemm_H_F8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_F8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_B8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_B8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_H_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_H_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_H_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_H_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_H_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_H_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_H_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_H_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_FP8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_FP8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_FP8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_FP8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_FP8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_FP8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_FP8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_FP8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8_FP8_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8_FP8_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8H_FP8_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8H_FP8_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_H_F8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_F8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_B8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_B8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_H_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_H_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_H_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_H_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_H_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_H_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_H_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_H_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_FP8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_FP8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_FP8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_FP8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_FP8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_FP8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_FP8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_FP8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8_FP8_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8_FP8_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8H_FP8_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8H_FP8_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 
-            // F8 NANOO
-            case TypedGemm_H_F8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_F8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_H_B8N_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_H_B8N_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8N_H_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_H_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_H_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_H_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8N_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_H_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_H_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            // TODO:; why FP8, not F8... need to change it to FP8N???
-            case TypedGemm_HF8N_H_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_H_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_H_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_H_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8N_FP8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_FP8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_FP8_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_FP8_S_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8N_FP8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_FP8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_FP8_H_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_FP8_H_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_HF8N_FP8_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_HF8N_FP8_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
-            case TypedGemm_F8NH_FP8_FP8_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F8NH_FP8_FP8_S, float>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                // F8 NANOO
+                case TypedGemm_H_F8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_F8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_H_B8N_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_H_B8N_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8N_H_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_H_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_H_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_H_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8N_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_H_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_H_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                // TODO:; why FP8, not F8... need to change it to FP8N???
+                case TypedGemm_HF8N_H_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_H_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_H_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_H_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8N_FP8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_FP8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_FP8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_FP8_S_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8N_FP8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_FP8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_FP8_H_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_FP8_H_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_HF8N_FP8_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_HF8N_FP8_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F8NH_FP8_FP8_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8NH_FP8_FP8_S, float>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #endif // TENSILE_USE_HALF
 #endif // TENSILE_USE_FP8_BF8
 
 #ifdef TENSILE_USE_FP6
-            case TypedGemm_F6_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F6_S_S>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_F6_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F6_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #endif //TENSILE_USE_FP6
 #ifdef TENSILE_USE_BF6
-            case TypedGemm_BF6_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_BF6_S_S>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_BF6_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_BF6_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #endif //TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
-            case TypedGemm_F4_S_S::TypeId():
-            {
-                return ReferenceSolution<TypedGemm_F4_S_S>::SolveCPU(
-                    problem, inputs, elementsToValidate);
-            }
+                case TypedGemm_F4_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F4_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
 #endif //TENSILE_USE_FP4
-            default:;
+                default:;
+                }
+
+                throw std::runtime_error("Data type not implemented.");
             }
 
-            throw std::runtime_error("Data type not implemented.");
-        }
-
-        void SolveCPU(ContractionProblem const* problem,
-                      ProblemInputs const*      inputs,
-                      size_t                    elementsToValidate)
-        {
-            if(auto groupedProblem = dynamic_cast<ContractionProblemGroupedGemm const*>(problem))
+            void SolveCPU(ContractionProblem const* problem,
+                          ProblemInputs const*      inputs,
+                          size_t                    elementsToValidate)
             {
-                if(auto refInput = dynamic_cast<ContractionGroupedInputs const*>(inputs))
+                if(auto groupedProblem
+                   = dynamic_cast<ContractionProblemGroupedGemm const*>(problem))
                 {
-                    auto contractionInputsTypeId
-                        = getInputContractionInputsTypeId(groupedProblem->gemms[0]);
-                    SolveCPUTemplates(
-                        contractionInputsTypeId, *groupedProblem, *refInput, elementsToValidate);
+                    if(auto refInput = dynamic_cast<ContractionGroupedInputs const*>(inputs))
+                    {
+                        auto contractionInputsTypeId
+                            = getInputContractionInputsTypeId(groupedProblem->gemms[0]);
+                        SolveCPUTemplates(contractionInputsTypeId,
+                                          *groupedProblem,
+                                          *refInput,
+                                          elementsToValidate);
+                    }
+                    else
+                        throw std::runtime_error(
+                            "Unable to cast input to ContractionGroupedInputs.");
+                }
+                else if(auto gemmProblem = dynamic_cast<ContractionProblemGemm const*>(problem))
+                {
+                    if(auto refInput = dynamic_cast<ContractionInputs const*>(inputs))
+                    {
+                        auto contractionInputsTypeId
+                            = getInputContractionInputsTypeId(*gemmProblem);
+                        SolveCPUTemplates(
+                            contractionInputsTypeId, *gemmProblem, *refInput, elementsToValidate);
+                    }
+                    else
+                        throw std::runtime_error("Unable to cast input to ContractionInputs.");
                 }
                 else
-                    throw std::runtime_error("Unable to cast input to ContractionGroupedInputs.");
-            }
-            else if(auto gemmProblem = dynamic_cast<ContractionProblemGemm const*>(problem))
-            {
-                if(auto refInput = dynamic_cast<ContractionInputs const*>(inputs))
                 {
-                    auto contractionInputsTypeId = getInputContractionInputsTypeId(*gemmProblem);
-                    SolveCPUTemplates(
-                        contractionInputsTypeId, *gemmProblem, *refInput, elementsToValidate);
+                    throw std::runtime_error(
+                        "[Reference] Failed to cast to any ContractionProblem");
                 }
-                else
-                    throw std::runtime_error("Unable to cast input to ContractionInputs.");
             }
-            else
-            {
-                throw std::runtime_error("[Reference] Failed to cast to any ContractionProblem");
-            }
-        }
-    } // namespace Client
-} // namespace TensileLite
+        } // namespace Client
+    } // namespace TensileLite
