@@ -6807,10 +6807,12 @@ class KernelWriterAssembly(KernelWriter):
     shiftK = Module("shiftK")
     m = (u) % (self.states.numVgprBuffer) # local to use for MACs
 
-    def dataTypeToMfmaInstTypePair(dataType: DataType, sourceSwap: bool) -> Tuple[InstType, InstType]:
-      miInTypeStr  = dataType.toNameAbbrev()
+    def dataTypeToMfmaInstTypePair(dataTypeA: DataType, dataTypeB: DataType, sourceSwap: bool) -> Tuple[InstType, InstType]:
+      miInTypeStrA  = dataTypeA.toNameAbbrev()
+      miInTypeStrB  = dataTypeB.toNameAbbrev()
+      miInTypeStr = miInTypeStrA + "_" + miInTypeStrB if miInTypeStrA != miInTypeStrB else miInTypeStrA
       miInInstType = dataTypeNameAbbrevToInstType(miInTypeStr, sourceSwap) # v_mfma_[...xK]<InType>
-      miOutInstType = dataTypeNameAbbrevToInstType(dataType.MIOutputTypeNameAbbrev()) # v_mfma_<OutType>..
+      miOutInstType = dataTypeNameAbbrevToInstType(dataTypeA.MIOutputTypeNameAbbrev()) # v_mfma_<OutType>..
       return miInInstType, miOutInstType
 
     def dataTypeNameAbbrevToInstType(abbrev: str, sourceSwap: bool = False) -> InstType:
@@ -6828,9 +6830,9 @@ class KernelWriterAssembly(KernelWriter):
           return InstType.INST_BF16
       elif abbrev == 'xf32':
           return InstType.INST_XF32
-      elif abbrev == 'fp8_fp8':
+      elif abbrev == 'fp8':
           return InstType.INST_F8
-      elif abbrev == 'bf8_bf8':
+      elif abbrev == 'bf8':
           return InstType.INST_BF8
       elif (abbrev == 'fp8_bf8' and sourceSwap == False) or \
           (abbrev == 'bf8_fp8' and sourceSwap == True):
@@ -6838,27 +6840,31 @@ class KernelWriterAssembly(KernelWriter):
       elif (abbrev == 'bf8_fp8' and sourceSwap == False) or \
           (abbrev == 'fp8_bf8' and sourceSwap == True):
           return InstType.INST_BF8_F8
-      elif abbrev == 'fp6_fp6':
-        return InstType.INST_F6
-      elif abbrev == 'bf6_bf6':
-        return InstType.INST_BF6
-      elif abbrev == 'fp4_fp4':
+      elif abbrev == 'fp6':
+          return InstType.INST_F6
+      elif abbrev == 'bf6':
+          return InstType.INST_BF6
+      elif abbrev == 'fp4':
           return InstType.INST_F4
       elif abbrev == 'e8':
-          return InstType.INST_E8
+        return InstType.INST_E8
       elif abbrev == 'e5m3':
           return InstType.INST_E5M3
       else:
           assert("Unsupported data type.")
       return InstType.INST_NOTYPE
 
-    miInputType      = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
+    miInputTypeA     = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["MacDataTypeA"]
+    miInputTypeB     = kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["MacDataTypeB"]
     # calculate constant
     is_mfma          = self.states.asmCaps["HasMFMA"]
     is_wmma_v1       = self.states.asmCaps["HasWMMA_V1"]
     is_wmma_v2       = self.states.asmCaps["HasWMMA_V2"]
     is_wmma_v3       = self.states.asmCaps["HasWMMA_V3"]
-    numRegistersIn   = miInputType.numRegisters()
+    numRegistersInA  = miInputTypeA.numRegisters()
+    numRegistersInB  = miInputTypeB.numRegisters()
+    # TODO: Consider correctness of tail-loop
+    numRegistersIn   = max(numRegistersInA, numRegistersInB)
     numRegistersInMXSA = kernel["ProblemType"]["DataTypeMXSA"].numRegisters() if kernel["ProblemType"]["MXBlockA"] else 0
     numRegistersInMXSB = kernel["ProblemType"]["DataTypeMXSB"].numRegisters() if kernel["ProblemType"]["MXBlockB"] else 0
     numRegistersOut  = kernel["MIRegPerOut"]
@@ -6878,7 +6884,7 @@ class KernelWriterAssembly(KernelWriter):
     numMIInput       = max(numMIInputA, numMIInputB)
     numMIInUnroll    = max(numMIInputA//numTileInInstA, numMIInputB//numTileInInstB)
 
-    miInInstType, miOutInstType = dataTypeToMfmaInstTypePair(miInputType, kernel["SourceSwap"])
+    miInInstType, miOutInstType = dataTypeToMfmaInstTypePair(miInputTypeA, miInputTypeB, kernel["SourceSwap"])
     neg_flag           = True if ((not is_mfma) and (miInInstType == InstType.INST_I8)) else False
     miInInstType       = InstType.INST_U8 if ((not is_mfma) and miInInstType == InstType.INST_I8) else miInInstType
     miOutInstType      = miOutInstType if (is_mfma or kernel["ProblemType"]["Sparse"]) else dataTypeNameAbbrevToInstType(kernel["ProblemType"]["ComputeDataType"].toNameAbbrev())
@@ -6890,8 +6896,8 @@ class KernelWriterAssembly(KernelWriter):
 
     tPM = (tPA["tpsMetadata"] if tPA["is_sparse"] else tPB["tpsMetadata"]) if kernel["ProblemType"]["Sparse"] else None
 
-    vgprPerInputA    = int(numMIInputA * numRegistersIn)
-    vgprPerInputB    = int(numMIInputB * numRegistersIn)
+    vgprPerInputA    = int(numMIInputA * numRegistersInA)
+    vgprPerInputB    = int(numMIInputB * numRegistersInB)
     vgprPerInputMXSA = ceil(numMIInputMXSA * numRegistersInMXSA)
     vgprPerInputMXSB = ceil(numMIInputMXSB * numRegistersInMXSB)
     vgprPerInputM    = int(ceil(numMIInputM // self.states.bpr))

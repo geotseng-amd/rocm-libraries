@@ -184,6 +184,7 @@ class LocalReadMFMA(LocalRead):
         else:
             raise Exception(f"unsupport tc %s{tc}")
 
+        MacDataType      = f"MacDataType{tc}" if(tc=="A" or tc=="B") else "DataType"
         tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
         bpr              = 4 # bytes/register
@@ -419,6 +420,7 @@ class LocalReadMFMA(LocalRead):
                     offset, srcAddr = self.cal_offset_srcAddr(maxLDSConstOffset, tc, offset_val)
                     ds = DSModifiers(na=1, offset=offset)
                     localReadCode.add(LocalReadX(dst=destVgpr, src=srcAddr, ds=ds, comment=comment))
+        # Without enableLDSTr
         else:
             for vIdx in range(0, numVectorsPerTile):
                 for eIdx in range(0, numReadsPerVector):
@@ -866,11 +868,11 @@ class LocalReadMFMA(LocalRead):
                                                 incOffset = 48
                                     incOffset = rIdx * numElementPerRead * UnrollStride + incOffset
                                     offset_val = (incOffset + offset_val + tP["localReadOffset"]) * tP["bpeDS"]
-                                # For wmma_v3, the maximum number of bytes per read is 16 bytes in 4 vgprs, which happens in the case of fp16/bf16/fp8/bf8/f4.
+                                # For wmma_v3, the maximum number of bytes per read is 16 bytes in 4 vgprs, which happens in the case of fp16/bf16/fp8/bf8/fp6/bf6/f4.
                                 elif tuple(kernel["ISA"][:2]) == (12, 5) \
-                                        and (kernel["ProblemType"]["DataType"].is8bitFloat() or kernel["ProblemType"]["DataType"].isBFloat16() \
-                                            or kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isFloat4() \
-                                                or kernel["ProblemType"]["DataType"].is6bitFloat() or kernel["ProblemType"]["DataType"].isInt8()):
+                                        and (kernel["ProblemType"][MacDataType].is8bitFloat() or kernel["ProblemType"][MacDataType].isBFloat16() \
+                                            or kernel["ProblemType"][MacDataType].isHalf() or kernel["ProblemType"][MacDataType].isFloat4() \
+                                                or kernel["ProblemType"][MacDataType].is6bitFloat() or kernel["ProblemType"][MacDataType].isInt8()):
                                     if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
                                         incOffset = rIdx * numElementPerRead * UnrollStride * 2
                                         incOffset += tiIdx * matrixInstTO * vectorWidth * tileStride
