@@ -163,7 +163,7 @@ class LraTileAssignmentTransposedMFMA(LraTileAssignment):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.states.kernel["WavefrontSize"]
         #FIXME: tail loop with transposed load b128
-        inputPerThread   = kernel["LocalReadVectorWidth"]
+        inputPerThread   = kernel[f"LocalReadVectorWidth{tc}"]
 
         isSparseDenseMatrix = False
         if kernel["ProblemType"]["Sparse"]:
@@ -309,7 +309,7 @@ class LraTileAssignmentTransposedMFMAB8(LraTileAssignmentTransposedMFMA):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.states.kernel["WavefrontSize"]
         #FIXME: tail loop with transposed load b128
-        inputPerThread   = kernel["LocalReadVectorWidth"]
+        inputPerThread   = kernel[f"LocalReadVectorWidth{tc}"]
 
         isSparseDenseMatrix = False
         if kernel["ProblemType"]["Sparse"]:
@@ -535,7 +535,7 @@ class LraTileAssignmentTransposedMFMAF4(LraTileAssignmentTransposedMFMA):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.states.kernel["WavefrontSize"]
         #FIXME: tail loop with transposed load b128
-        inputPerThread   = kernel["LocalReadVectorWidth"]
+        inputPerThread   = kernel[f"LocalReadVectorWidth{tc}"]
 
         if kernel["ProblemType"]["Sparse"]:
           if (kernel["ProblemType"]["Sparse"] == 2 and tP["isB"]) or (kernel["ProblemType"]["Sparse"] == 1 and  tP["isA"]):
@@ -645,7 +645,7 @@ class LraTileAssignmentTransposedMFMAF6(LraTileAssignmentTransposedMFMA):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.states.kernel["WavefrontSize"]
         #FIXME: tail loop with transposed load b128
-        inputPerThread   = kernel["LocalReadVectorWidth"]
+        inputPerThread   = kernel[f"LocalReadVectorWidth{tc}"]
 
         if kernel["ProblemType"]["Sparse"]:
           if (kernel["ProblemType"]["Sparse"] == 2 and tP["isB"]) or (kernel["ProblemType"]["Sparse"] == 1 and  tP["isA"]):
@@ -767,7 +767,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tc               = tP["tensorChar"]
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.states.kernel["WavefrontSize"]
-        lrvw             = kernel["LocalReadVectorWidthMXS"] if ("MXS" in tc) else kernel["LocalReadVectorWidth"]
+        lrvw             = kernel["LocalReadVectorWidthMXS"] if ("MXS" in tc) else kernel[f"LocalReadVectorWidth{tc}"]
         inputPerThread   = lrvw if not writer.states.inTailLoop else kernel["MIInputPerThread%s"%tc]
         if kernel["ProblemType"]["Sparse"]:
           if (kernel["ProblemType"]["Sparse"] == 2 and tP["isB"]) or (kernel["ProblemType"]["Sparse"] == 1 and tP["isA"]):

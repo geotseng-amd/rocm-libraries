@@ -3457,7 +3457,7 @@ class KernelWriterAssembly(KernelWriter):
         unrollStride = 0
 
         if (tP["isA"] or tP["isB"]) and kernel["DirectToVgpr%s"%tc]:
-          unrollStride = perp*uVW + (kernel[tP["lsp"]] * sPerp * kernel["LocalReadVectorWidth"])
+          unrollStride = perp*uVW + (kernel[tP["lsp"]] * sPerp * kernel["LocalReadVectorWidth%s"%tc])
         else:
           unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
 
@@ -4255,7 +4255,7 @@ class KernelWriterAssembly(KernelWriter):
           comment="Final Offset Plus 128K" ))
 
     #LSC_ * LSP_
-    numBytesPerElement = kernel["ProblemType"]["DataType"].numBytes()
+    numBytesPerElement = tP["bpeGR"]
     validWIPerLoad     = kernel[tP["lsc"]] * kernel[tP["lsp"]]//tP["glvw"]
     validBytesPerLoad  = int(kernel[tP["lsc"]] * kernel[tP["lsp"]] * numBytesPerElement)
     maxBytesPerLoad    = int(kernel["NumThreads"] * tP["glvw"] * numBytesPerElement)
@@ -6359,12 +6359,12 @@ class KernelWriterAssembly(KernelWriter):
       item = None
       startVgprName = sgpxIdxVec[0]
       if kernel["ProblemType"]["UseScaleAB"] == "Scalar":
-        if (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters()) and (kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters()):
+        if (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["MacDataTypeA"].numRegisters()) and (kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["MacDataTypeB"].numRegisters()):
           self.argLoader.setOffset(offset + ((self.states.rpga * self.states.bpr) * 2))
-        elif kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters():
+        elif kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["MacDataTypeA"].numRegisters():
           assert sgpxIdxVec[0] == self.sgprs["AddressScaleB"]
           self.argLoader.setOffset(offset + (self.states.rpga * self.states.bpr))
-        elif kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters():
+        elif kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["MacDataTypeB"].numRegisters():
           assert sgpxIdxVec[0] == self.sgprs["AddressScaleA"]
           item = self.argLoader.loadKernArg(self.sgprs["AddressScaleA"], "KernArgAddress", dword=2)
           if len(sgpxIdxVec) > 1:
@@ -6504,13 +6504,13 @@ class KernelWriterAssembly(KernelWriter):
           module.add(RegSet("s", "sgpr"+name, self.sgprs[name]))
 
       argOffset = self.argLoader.getOffset() # Backup offset
-      if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters() or kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters()):
+      if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["MacDataTypeA"].numRegisters() or kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["MacDataTypeB"].numRegisters()):
         self.argLoader.setOffset(argOffset + (self.states.numStoreSgprToLoad)*4 + (self.states.rpga * self.states.bpr)) # Restore offset
       else:
         self.argLoader.setOffset(argOffset + (self.states.numStoreSgprToLoad)*4) # Restore offset
       numStoreSgprToLoad = self.states.numStoreSgprToLoad2
 
-      if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters() or kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters()):
+      if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and (kernel["ProblemType"]["DataTypeA"].numRegisters() > kernel["ProblemType"]["MacDataTypeA"].numRegisters() or kernel["ProblemType"]["DataTypeB"].numRegisters() > kernel["ProblemType"]["MacDataTypeB"].numRegisters()):
         argOffsettmp = (argOffset + (self.states.numStoreSgprToLoad)*4 + (self.states.rpga * self.states.bpr)) # Restore offset
       else:
         argOffsettmp = (argOffset + (self.states.numStoreSgprToLoad)*4) # Restore offset
@@ -6597,7 +6597,8 @@ class KernelWriterAssembly(KernelWriter):
 
   def mfmaIter_waitCount(self, kernel):
     if self.states.version in [(9,4,2), (9,5,0)]:
-      dataType = kernel["ProblemType"]["DataType"]
+      # TODO: check if this is correct for all MI versions
+      dataType = kernel["ProblemType"]["MacDataTypeA"]
       miM = kernel["MatrixInstM"]
       miN = kernel["MatrixInstN"]
       if dataType.isSingle() or dataType.isHalf() or dataType.isBFloat16():
@@ -8378,10 +8379,10 @@ class KernelWriterAssembly(KernelWriter):
 
                 numElementsPerLoad = 1
                 # FIXME: Don't know why for grvw == 1, need further investigate
-                glvwWorkaround = 8 * kernel["ProblemType"]["DataType"].numRegisters()
+                glvwWorkaround = 8 * kernel["ProblemType"]["MacDataType%s"%tcDataType if (tcDataType=='A' or tcDataType=='B') else "DataType"].numRegisters()
                 dataType = kernel["ProblemType"]["DataType%s"%tcDataType]
                 if ("MXS" not in tcDataType) and tP["glvw"] < glvwWorkaround:
-                    dataType = kernel["ProblemType"]["DataType"]
+                    dataType = kernel["ProblemType"]["MacDataType%s"%tcDataType if (tcDataType=='A' or tcDataType=='B') else "DataType"]
                 if kernel["ConvertAfterDS"]:
                     dataType = kernel["ProblemType"]["DataType%s"%tcDataType]
                 if dataType.isInt8() or dataType.is8bitFloat() or tP["isM"]:
@@ -9177,7 +9178,7 @@ class KernelWriterAssembly(KernelWriter):
                     assert(graIdx <= self.states.m.numVgprG2LAllocated)
 
                 # TODO: is it possible to load only hi16 when no in tail? (need to check INT8 too)
-                datatype = kernel["ProblemType"]["DataType%s"%tc] if kernel["ConvertAfterDS"] else kernel["ProblemType"]["DataType"]
+                datatype = kernel["ProblemType"]["DataType%s"%tc] if kernel["ConvertAfterDS"] else kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"]
                 isHigh16Bits = (datatype.isHalf() or datatype.isBFloat16()) and loopCnt%2==1 if isAB else False
                 if tc == "A" and record[0] == True:
                   self.globalread_gpr_record.a.addrVgpr.append(offsetVgpr)
@@ -9210,7 +9211,7 @@ class KernelWriterAssembly(KernelWriter):
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           glc=isGlc, slc=isSlc, nt=isNT, lds=isLds, \
-                          hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
+                          hi16=(kernel["ProblemType"]["MacDataType%s"%tc if not tP["isM"] else "DataType"].isHalf() or kernel["ProblemType"]["MacDataType%s"%tc if not tP["isM"] else "DataType"].isBFloat16()) and loopCnt%2==1, \
                           comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp )))
 
       if kernel["ProblemType"]["Sparse"] and kernel["DirectToVgprSparseMetadata"]:
@@ -9938,7 +9939,7 @@ class KernelWriterAssembly(KernelWriter):
                       localWriteCVTCode.add(VPackF16toB32(dst=vgpr(src), src0=vgpr(src), src1=vgpr(destVgprPrefix + "+%u" % (g2lIdx+1)), \
                                         vop3=VOP3PModifiers(op_sel=[0,0,0]), comment="Pack with neighbor"))
                   else:
-                    printExit("Unsupported combination DataType%s (%s) -> DataType (%s)"%(tc, kernel["ProblemType"]["DataType%s"%tc].toChar(), kernel["ProblemType"]["DataType"].toChar()))
+                    printExit("Unsupported combination DataType%s (%s) -> MacDataType (%s)"%(tc, kernel["ProblemType"]["DataType%s"%tc].toChar(), kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].toChar()))
                 elif tP["glvw"] > 1:
                   localWriteCVTCode.add(VMovB32(dst=vgpr(dst), src=vgpr(src), comment="another VGPR storing lshr 8-bit value"))
                   localWriteCVTCode.add(VLShiftRightB32(dst=vgpr(dst), shiftHex=hex(8), src=vgpr(dst), comment="G2L Vpgr >> 8"))
@@ -9977,7 +9978,7 @@ class KernelWriterAssembly(KernelWriter):
                 numsOfRegister.append(blockWidth)
               if self.db["ForceInputValue%s"%tc]:
                 localWriteCVTCode.add(VMovB32(dst=vgpr(destVgprPrefix + "+%u"%(g2lIdx)), src=self.db["ForceValue%s"], comment="ForceInputValue"))
-              if (kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["DataType%s"%tc].isHalf()) and isAB:
+              if (kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].isBFloat16() and kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].isHalf()) and isAB:
                 numIters = 1 if blockWidth <= 1 else blockWidth
                 vgprTmp = self.vgprPool.checkOut(2)
                 for iter in range(0, numIters):
@@ -10005,7 +10006,7 @@ class KernelWriterAssembly(KernelWriter):
             #comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
             isHigh16Bits = False
             isCvtHighBits = False
-            datatype = kernel["ProblemType"]["DataType%s"%tc] if kernel["ConvertAfterDS"] else kernel["ProblemType"]["DataType"]
+            datatype = kernel["ProblemType"]["DataType%s"%tc] if kernel["ConvertAfterDS"] else kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"]
             if (datatype.isHalf() or datatype.isBFloat16()) and isAB:
               if s%2==1:
                 isHigh16Bits = True
@@ -10030,7 +10031,7 @@ class KernelWriterAssembly(KernelWriter):
               # Need cvt
             if tP["bpeDS"] != tP["bpeGR"]:
               assert numBlocks == 1
-              if (kernel["ProblemType"]["DataType%s"%tc].isSingle() and kernel["ProblemType"]["DataType"].isHalf()):
+              if (kernel["ProblemType"]["DataType%s"%tc].isSingle() and kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].isHalf()):
                 newBlockWidth = (tP["bpeGR"] / tP["bpe"]) * blockWidth
                 if newBlockWidth == 1:
                   new_src = deepcopy(paramList[0])
@@ -10049,7 +10050,7 @@ class KernelWriterAssembly(KernelWriter):
                     else:
                       dst_sel = SelectBit.WORD_1 if vi%2==1 else SelectBit.WORD_0
                       localWriteCVTCode.add(VCvtF32toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
-              elif (kernel["ProblemType"]["DataType%s"%tc].isHalf() and kernel["ProblemType"]["DataType"].is8bitFloat()):
+              elif (kernel["ProblemType"]["DataType%s"%tc].isHalf() and kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].is8bitFloat()):
                 #HH_F8/B8/F8B8/B8F8_
                 toF8 = False
                 if (kernel["ProblemType"]["DataType"].isAnyFloat8() or
@@ -10128,7 +10129,7 @@ class KernelWriterAssembly(KernelWriter):
 
                       if kernel["ProblemType"]["StochasticRounding"]:
                         # ScaleA/B, sgpr upper is dummy.
-                        if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["ProblemType"]["DataType%s"%tc].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters():
+                        if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["ProblemType"]["DataType%s"%tc].numRegisters() > kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].numRegisters():
                           localWriteCVTCode.add(VMulPKF32S(dst=vgpr(vgprTmp, 2), src0=vgpr(vgprTmp, 2), src1=sgpr("Scale%s"%tc, 2), vop3=VOP3PModifiers(op_sel_hi=[1,0,1]), comment="Input *= scale %s"%tc))
                         vRand = vgprTmp+2
                         if self.states.asmCaps["v_prng_b32"]:
@@ -10162,7 +10163,7 @@ class KernelWriterAssembly(KernelWriter):
                           localWriteCVTCode.add(VCvtSRF32toBF8(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src0=vgpr(vgprTmp2), src1=vgpr(vRand), vop3=VOP3PModifiers(op_sel=[0,0,1,sel]), comment="Convert to BF8"))
                       else:
                         # ScaleA/B, sgpr upper is dummy.
-                        if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["ProblemType"]["DataType%s"%tc].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters():
+                        if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["ProblemType"]["DataType%s"%tc].numRegisters() > kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].numRegisters():
                           localWriteCVTCode.add(VMulPKF32S(dst=vgpr(vgprTmp, 2), src0=vgpr(vgprTmp, 2), src1=sgpr("Scale%s"%tc, 2), vop3=VOP3PModifiers(op_sel_hi=[1,0,1]), comment="Input *= scale %s"%tc))
 
                         if (toF8):
@@ -10171,7 +10172,7 @@ class KernelWriterAssembly(KernelWriter):
                           localWriteCVTCode.add(VCvtPkF32toBF8(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src0=vgpr(vgprTmp), src1=vgpr(vgprTmp2), vop3=VOP3PModifiers(op_sel=[0,0,sel]), comment="Convert to BF8"))
                   self.vgprPool.checkIn(vgprTmp)
 
-              elif (kernel["ProblemType"]["DataType%s"%tc].isAnyFloat8() and kernel["ProblemType"]["DataType"].isHalf()):
+              elif (kernel["ProblemType"]["DataType%s"%tc].isAnyFloat8() and kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].isHalf()):
                 newBlockWidth = tP["globalReadInstruction"].blockWidth
                 if newBlockWidth == 0.25:
                   new_src = deepcopy(paramList[0])
@@ -10296,7 +10297,7 @@ class KernelWriterAssembly(KernelWriter):
                       localWriteCVTCode.add(VCvtF32toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdxTmp, vi * 2 + interOffset)), src=vgpr(vgprTmp+1), sdwa=SDWAModifiers(dst_sel=SelectBit.WORD_1), comment="Convert to FP16"))
                   self.vgprPool.checkIn(vgprTmp)
               else:
-                printExit("Unsupported combination DataType%s (%s) -> DataType (%s)"%(tc, kernel["ProblemType"]["DataType%s"%tc].toChar(), kernel["ProblemType"]["DataType"].toChar()))
+                printExit("Unsupported combination DataType%s (%s) -> MacDataType (%s)"%(tc, kernel["ProblemType"]["DataType%s"%tc].toChar(), kernel["ProblemType"]["MacDataType%s"%tc if (tc=='A' or tc=='B') else "DataType"].toChar()))
 
             if kernel["UseF32XEmulation"] and kernel["EnableF32XEmulationLds"]:
               vgrStr = str("vgpr" + destVgprPrefix + "+%u"%(g2lIdx + eccOffset))
@@ -10615,7 +10616,7 @@ class KernelWriterAssembly(KernelWriter):
           else:
             if tc == "A":
               sparseA = kernel["ProblemType"]["Sparse"] == 1
-              lrvw = kernel["LocalReadVectorWidth"] // (2 if sparseA else 1)
+              lrvw = kernel["LocalReadVectorWidth%s"%tc] // (2 if sparseA else 1)
               wlr = lrvw//kernel["MIInputPerThreadA"]
               wlr = 1 if wlr == 0 else wlr
               #if (self.states.localReadDoCntA)%(lrvw//kernel["MIInputPerThreadA"]):
@@ -10650,7 +10651,7 @@ class KernelWriterAssembly(KernelWriter):
                 offsetInc //= 8
             elif tc == "B":
               sparseB = kernel["ProblemType"]["Sparse"] == 2
-              lrvw = kernel["LocalReadVectorWidth"] // (2 if sparseB else 1)
+              lrvw = kernel["LocalReadVectorWidth%s"%tc] // (2 if sparseB else 1)
               wlr = lrvw//kernel["MIInputPerThreadB"]
               wlr = 1 if wlr == 0 else wlr
               #if (self.states.localReadDoCntB)%(lrvw//kernel["MIInputPerThreadB"]):
@@ -11974,13 +11975,13 @@ class KernelWriterAssembly(KernelWriter):
       # Issue read scale A/B value for later use
       if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and \
         isSingleKernel and \
-        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters()) or \
-        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters())):
+        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["MacDataTypeA"].numRegisters()) or \
+        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["MacDataTypeB"].numRegisters())):
         assert(kernel["ProblemType"]["ComputeDataType"].isSingle())
         sgprScaleA = self.sgprPool.checkOut(1, preventOverflow=False)
         sgprScaleB = self.sgprPool.checkOut(1, preventOverflow=False)
         for i,name in enumerate(['A','B']):
-          if kernel["ProblemType"]["DataType%s"%name].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters():
+          if kernel["ProblemType"]["DataType%s"%name].numRegisters() <= kernel["ProblemType"]["MacDataType%s"%name].numRegisters():
             sgprScale = sgprScaleA if name == 'A' else sgprScaleB
             module.add(SMovB32(dst=sgpr(sgprScale), src=1.0 , comment="init as 1" ))
             label  = Label(self.labels.getNameInc("Scale%sValid"%name), "")
@@ -12227,15 +12228,15 @@ class KernelWriterAssembly(KernelWriter):
           module.add(self.undefineSgpr("SrdScaleAlphaVec"))
 
       if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and (((kernel["GlobalSplitU"] == 1 or kernel["GlobalSplitU"] == -1) or kernel["StreamK"] > 0) or kernel["_GlobalAccumulation"] == 'MultipleBufferSingleKernel') and \
-        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters()) or \
-        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters())):
+        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["MacDataTypeA"].numRegisters()) or \
+        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["MacDataTypeB"].numRegisters())):
         assert(kernel["ProblemType"]["ComputeDataType"].isSingle())
         newAlphaVgpr = self.vgprPool.checkOut(1)
         module.add(VMovB32(dst=vgpr(newAlphaVgpr), src=sgpr("Alpha")))
         module.add(SWaitCnt(lgkmcnt=0, kmcnt=0, comment="wait for scaleAB load"))
-        if kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters():
+        if kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["MacDataTypeA"].numRegisters():
           module.add(VMulF32(dst=vgpr(newAlphaVgpr), src0=vgpr(newAlphaVgpr), src1=sgpr(sgprScaleA)))
-        if kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters():
+        if kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["MacDataTypeB"].numRegisters():
           module.add(VMulF32(dst=vgpr(newAlphaVgpr), src0=vgpr(newAlphaVgpr), src1=sgpr(sgprScaleB)))
         module.add(SNop(waitState=0, comment="1 wait states"))
         if kernel["StreamK"] > 0:
@@ -12593,8 +12594,8 @@ class KernelWriterAssembly(KernelWriter):
       module.add(endLabel)
 
       if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["StreamK"] > 0 and \
-        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters()) or \
-        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["DataType"].numRegisters())):
+        ((kernel["ProblemType"]["DataTypeA"].numRegisters() <= kernel["ProblemType"]["MacDataTypeA"].numRegisters()) or \
+        (kernel["ProblemType"]["DataTypeB"].numRegisters() <= kernel["ProblemType"]["MacDataTypeB"].numRegisters())):
         assert(kernel["ProblemType"]["ComputeDataType"].isSingle())
         module.add(SMovB32(dst=sgpr("Alpha"), src=sgpr(oldAlpha), comment="Restore alpha value"))
         self.sgprPool.checkIn(oldAlpha)

@@ -4030,9 +4030,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     numWritesCoalVecComp # nwvc
     numWritesPerpVecComp # nwvp
     """
-
-    if kernel["EnableMatrixInstruction"] and kernel["LocalReadVectorWidth"] >= kernel["MIInputPerThread"]:
-      WLR = max(max(kernel["LocalReadVectorWidth"]//kernel["MIInputPerThread"], 1), 1)
+    # TODO: Check correctness of WLR
+    if kernel["EnableMatrixInstruction"] and kernel["LocalReadVectorWidthA"] >= kernel["MIInputPerThread"]:
+      WLR = max(max(kernel["LocalReadVectorWidthA"]//kernel["MIInputPerThread"], 1), 1)
       self.states.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"]//WLR)
     else:
       self.states.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"])
@@ -4128,13 +4128,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if kernel["UnrollMajorLDSA"]:
       divider = 2 if (kernel["ProblemType"]["Sparse"] == 1) else 1
-      self.states.lrvwUnrollA = kernel["LocalReadVectorWidth"] // divider
+      self.states.lrvwUnrollA = kernel["LocalReadVectorWidthA"] // divider
     else:
       self.states.lrvwUnrollA = 1
 
     if kernel["UnrollMajorLDSB"]:
       divider = 2 if (kernel["ProblemType"]["Sparse"] == 2) else 1
-      self.states.lrvwUnrollB = kernel["LocalReadVectorWidth"] // divider
+      self.states.lrvwUnrollB = kernel["LocalReadVectorWidthB"] // divider
     else:
       self.states.lrvwUnrollB = 1
 
