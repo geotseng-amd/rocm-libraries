@@ -237,7 +237,7 @@ class LocalReadMFMA(LocalRead):
         if writer.states.archCaps["HasEccHalf"] or not writer.states.asmCaps["HasWMMA_V1"]:
             needPack = tP["bpeDS"] < 4 and not kernel["UnrollMajorLDS%s"%tc] and not tP["isM"]
             # specify I8 for the case that input number is equal to the localread blockwidth but need to split low and high bytes to different vgprs.
-            needPackMetadata = tP["isM"] and ((MIInputPerThUnroll * tP["bpeDS"] / (blockWidth * 4) > 1) or (kernel["ProblemType"]["DataType"].numBytes() == 1 and writer.states.lrvwTileMetadata > 1))
+            needPackMetadata = tP["isM"] and ((MIInputPerThUnroll * tP["bpeDS"] / (blockWidth * 4) > 1) or (kernel["ProblemType"][MacDataType].numBytes() == 1 and writer.states.lrvwTileMetadata > 1))
             needPack |= needPackMetadata
         else:
             needPack = blockWidth == 0.25

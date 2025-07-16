@@ -422,7 +422,8 @@ class LraTileAssignmentTransposedMFMA_FP8(LraTileAssignmentTransposedMFMAB8):
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("F8")
+                  "DataType": DataType("F8"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB64B8": True
@@ -433,7 +434,8 @@ class LraTileAssignmentTransposedMFMA_BF8(LraTileAssignmentTransposedMFMA_FP8):
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("B8")
+                  "DataType": DataType("B8"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB64B8": True
@@ -444,7 +446,8 @@ class LraTileAssignmentTransposedMFMA_FP8BF8(LraTileAssignmentTransposedMFMA_FP8
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("F8B8")
+                  "DataType": DataType("F8B8"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB64B8": True
@@ -455,18 +458,50 @@ class LraTileAssignmentTransposedMFMA_BF8FP8(LraTileAssignmentTransposedMFMA_FP8
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("B8F8")
+                  "DataType": DataType("B8F8"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB64B8": True
     }
+      
+class LraTileAssignmentTransposedMFMAMixMode(LraTileAssignmentTransposedMFMAB8):
+    kernel = {"EnableMatrixInstruction": True,
+              "DirectToVgprA": False,
+              "DirectToVgprB": False,
+              "ProblemType": {
+                  "isMixMode": True,
+              }}
+    asmCaps = {
+        "HasLDSTrB64B8": True,
+        "HasLDSTrB64B4": True,
+        "HasLDSTrB96B6": True,
+    }
+    def __call__(self, writer, kernel, tP):
+        # TODO: check correctness of this condition
+        MacDataType = f"MacDataType{tP["tensorChar"]}" if(tP["tensorChar"]=="A" or tP["tensorChar"]=="B") else "DataType"
+        if not tP["enableLDSTr"]:
+            comp = LraTileAssignmentMFMA()
+            return comp(writer, kernel, tP)
+        if kernel["ProblemType"][MacDataType].numBytes() == 0.5:
+            comp = LraTileAssignmentTransposedMFMAF4()
+            return comp(writer, kernel, tP)
+        if kernel["ProblemType"][MacDataType].numBytes() == 0.75:
+            comp = LraTileAssignmentTransposedMFMAF6()
+            return comp(writer, kernel, tP)
+        if kernel["ProblemType"][MacDataType].numBytes() == 1:
+            comp = LraTileAssignmentTransposedMFMAB8()
+            return comp(writer, kernel, tP)
+        comp = LraTileAssignmentTransposedMFMAB8()
+        return comp(writer, kernel, tP)
 
 class LraTileAssignmentTransposedMFMAF4(LraTileAssignmentTransposedMFMA):
     kernel = {"EnableMatrixInstruction": True,
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("F4")
+                  "DataType": DataType("F4"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB64B4": True
@@ -575,7 +610,8 @@ class LraTileAssignmentTransposedMFMAF6(LraTileAssignmentTransposedMFMA):
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("F6")
+                  "DataType": DataType("F6"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB96B6": True
@@ -681,7 +717,8 @@ class LraTileAssignmentTransposedMFMAB6(LraTileAssignmentTransposedMFMAF6):
               "DirectToVgprA": False,
               "DirectToVgprB": False,
               "ProblemType": {
-                  "DataType": DataType("B6")
+                  "DataType": DataType("B6"),
+                  "isMixMode": False,
               }}
     asmCaps = {
         "HasLDSTrB96B6": True

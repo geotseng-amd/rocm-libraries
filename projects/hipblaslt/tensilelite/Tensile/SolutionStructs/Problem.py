@@ -497,6 +497,7 @@ _defaultProblemType = {
     "SupportUserArgs": True,
     "SwizzleTensorA": False,
     "SwizzleTensorB": False,
+    "isMixMode": False,  # True means this is a mix-mode problem, i.e. Float8BFloat6 or BFloat6Float8
     "MetadataLayout": 0,
     # MX Block
     "MXBlockA": 0,
@@ -764,7 +765,7 @@ class ProblemType(Mapping):
         else:
           raise Exception("NO compute data type, or dest data type, or data type specified")
           self["DataType"] = DataType(0)
-
+    self["isMixMode"] = True if not self["Sparse"] and self["MacDataTypeA"].value != self["MacDataTypeB"].value else False
     if "DataTypeMXSA" in config:
       self["DataTypeMXSA"] = DataType(config["DataTypeMXSA"])
     else:
