@@ -1880,6 +1880,18 @@ namespace TensileLite
                         problem, inputs, elementsToValidate);
                 }
 #endif //TENSILE_USE_BF6
+#if defined(TENSILE_USE_FP6) && defined(TENSILE_USE_BF6)
+                case TypedGemm_F6B6_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F6B6_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B6F6_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B6F6_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+#endif // defined(TENSILE_USE_FP6) && defined(TENSILE_USE_BF6)
 #ifdef TENSILE_USE_FP4
                 case TypedGemm_F4_S_S::TypeId():
                 {
@@ -1887,6 +1899,28 @@ namespace TensileLite
                         problem, inputs, elementsToValidate);
                 }
 #endif //TENSILE_USE_FP4
+#if defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4)
+                case TypedGemm_F8F4_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F8F4_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F4F8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F4F8_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_B8F4_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_B8F4_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+                case TypedGemm_F4B8_S_S::TypeId():
+                {
+                    return ReferenceSolution<TypedGemm_F4B8_S_S>::SolveCPU(
+                        problem, inputs, elementsToValidate);
+                }
+#endif // defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4)
                 default:;
                 }
 

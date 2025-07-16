@@ -157,8 +157,20 @@ namespace rocisa
                 return "f8f6f4";
             case InstType::INST_BF6:
                 return "f8f6f4";
+            case InstType::INST_F6_B6:
+                return "f8f6f4";
+            case InstType::INST_B6_F6:
+                return "f8f6f4";
             case InstType::INST_F4:
                 return ((variant[0] < f4_t) && (variant[1] < f4_t)) ? "f8f6f4" : "f4";
+            case InstType::INST_F8_F4:
+                return "f8f6f4";
+            case InstType::INST_F4_F8:
+                return "f8f6f4";
+            case InstType::INST_B8_F4:
+                return "f8f6f4";
+            case InstType::INST_F4_B8:
+                return "f8f6f4";
             default:
                 std::string msg("Type not found");
                 msg += std::to_string(int(iType));
@@ -242,12 +254,30 @@ namespace rocisa
                 case InstType::INST_BF6:
                     inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
                     break;
+                case InstType::INST_F6_B6:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
+                    break;
+                case InstType::INST_B6_F6:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_FP6" : "";
+                    break;
                 case InstType::INST_F4:
                 {
                     bool useModifier = ((variant[0] < f4_t) && (variant[1] < f4_t));
                     inputPermuteStr = useModifier ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP4" : "";
                     break;
                 }
+                case InstType::INST_F8_F4:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_FP4" : "";
+                    break;
+                case InstType::INST_F4_F8:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP8" : "";
+                    break;
+                case InstType::INST_B8_F4:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_FP4" : "";
+                    break;
+                case InstType::INST_F4_B8:
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_BF8" : "";
+                    break;
                 default:
                     break;
                 }
@@ -381,12 +411,30 @@ namespace rocisa
             case InstType::INST_BF6:
                 inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
                 break;
+            case InstType::INST_F6_B6:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
+                break;
+            case InstType::INST_B6_F6:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_FP6" : "";
+                break;
             case InstType::INST_F4:
             {
                 bool useModifier = ((variant[0] < f4_t) && (variant[1] < f4_t));
                 inputPermuteStr = useModifier ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP4" : "";
                 break;
             }
+            case InstType::INST_F8_F4:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_FP4" : "";
+                break;
+            case InstType::INST_F4_F8:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP8" : "";
+                break;
+            case InstType::INST_B8_F4:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_FP4" : "";
+                break;
+            case InstType::INST_F4_B8:
+                inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_BF8" : "";
+                break;
             default:
                 break;
             }
