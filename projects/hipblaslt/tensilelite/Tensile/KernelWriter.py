@@ -35,7 +35,7 @@ from rocisa.instruction import BufferLoadB128, BufferLoadB192, BufferLoadB32, Bu
   DSLoadU8, DSStore2B32, DSStore2B64, DSStoreB128, DSStoreB16, DSStoreB256, \
   DSStoreB32, DSStoreB64, DSStoreB8, DSStoreInstruction, FlatLoadB128, FlatLoadB192, FlatLoadB32, \
   FlatLoadB64, FlatStoreB128, FlatStoreB32, FlatStoreB64, Instruction, \
-  MFMAInstruction, SBarrier, SBranch, SCBranchSCC0, SCBranchSCC1, SCmpLeU32, \
+  MFMAInstruction, SBarrier, SBranch, SCBranchSCC0, SCBranchSCC1, SCBranchVCCNZ, SCmpLeU32, \
   SMFMAInstruction, SNop, SSetPrior, SSetRegIMM32B32, SSubU32, SWaitCnt, SWaitAlu, \
   SLongBranchPositive, VFmaMixF32, VMadMixF32, VMovB32, VNop
 from rocisa.register import RegisterPool
@@ -5559,6 +5559,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # longBranchScc1 - 32 bit offset
+  ##############################################################################
+  @abc.abstractmethod
+  def longBranchScc1(self, label: Label, posNeg: int=0, comment=""):
+    return ""
+  
+  ##############################################################################
+  # longBranchVccnz - 32 bit offset
+  ##############################################################################
+  @abc.abstractmethod
+  def longBranchVccnz(self, label: Label, posNeg: int=0, comment=""):
+    return ""
+  
+  ##############################################################################
   # WaitCnt
   ##############################################################################
   def _wait(self, kernel, tPA, tPB, skipGlobalRead, skipLocalWrite, skipLocalRead, comment, skipGlobalReadInst=-1):
@@ -5668,6 +5682,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
               _placeholder.add(self.longBranchScc1(_target, 1, tmpSgprInfo))
         else:
           _placeholder.add(SCBranchSCC1(labelName=_target.getLabelName()))
+      elif _operation == "SCBranchVCCNZ":
+        if currentInstLength - count + 1 >= self.states.asmCaps["ShortBranchMaxLength"]:
+          with self.allocTmpSgpr(3) as tmpSgprInfo:
+              _placeholder.add(self.longBranchVccnz(_target, 1, tmpSgprInfo))
+        else:
+          _placeholder.add(SCBranchVCCNZ(labelName=_target.getLabelName()))
       elif _operation == "SBranch":
         if currentInstLength - count + 1 >= self.states.asmCaps["ShortBranchMaxLength"]:
           with self.allocTmpSgpr(3) as tmpSgprInfo:
