@@ -272,6 +272,7 @@ class StateValues:
   miLatency: int                         = 0
   miLatencyLeft: int                     = 0
   miDependency: int                      = 0
+  miVALUInstrDataHazard: int             = 0 # 2nd VALU instruction is not any XDL WMMA/SWMMAC instruction
   numMfmaForLR: int                      = 1
   grEndMfmaIndex: int                    = -1
   sync1LdsMfmaIndex: int                 = -1
@@ -2940,6 +2941,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(self.removeStagger(kernel, tensorParametersA))
       module.add(self.removeStagger(kernel, tensorParametersB))
 
+    module.add(VNop(self.states.miVALUInstrDataHazard, "Add v_nop before releasing ValuA/B"))
     self.vgprPool.add(self.states.a.startVgprValu , \
         self.states.lastValuAB - self.states.a.startVgprValu, "ValuAB")
     module.addComment1("Tail: add ValuA/B vgpr buffer [%u...%u) to pool" % \
@@ -4894,6 +4896,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if kernel['ISA'] == IsaVersion(9,0,10):
             self.states.miDependency = 4
 
+      # Next VALU instruction with source same as the previous XDL S/WMMA instruction's Matrix D (RAW)
+      # Next VALU instruction with same vdst as the previous XDL S/WMMA instruction's Matrix D (WAW)
+      # Next VALU instruction with same vdst as the previous XDL S/WMMA instruction's Matrix A/B/Index (WAR)
+      self.states.miVALUInstrDataHazard = 0
+      if self.states.version == (12,5,0):
+        if kernel["ProblemType"]["Sparse"]:
+          if (kernel["ProblemType"]["DataType"].isHalf() or \
+            kernel["ProblemType"]["DataType"].isBFloat16() or \
+            kernel["ProblemType"]["DataType"].is8bitFloat()):
+            self.states.miVALUInstrDataHazard = 2
+          elif kernel["ProblemType"]["DataType"].isInt8():
+            self.states.miVALUInstrDataHazard = 4
+        else:
+          if (kernel["ProblemType"]["DataType"].isHalf() or \
+            kernel["ProblemType"]["DataType"].isBFloat16() or \
+            (kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] <= 64) or \
+            kernel["ProblemType"]["DataType"].is6bitFloat() or \
+            kernel["ProblemType"]["DataType"].isFloat4()):
+            self.states.miVALUInstrDataHazard = 4
+          elif (kernel["ProblemType"]["DataType"].isInt8() or \
+            (kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 64)):
+            self.states.miVALUInstrDataHazard = 8
 
     # shift vectors determined later
 
