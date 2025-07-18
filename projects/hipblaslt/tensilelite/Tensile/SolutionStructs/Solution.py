@@ -1259,6 +1259,15 @@ class Solution(collections.abc.Mapping):
         state["UnrollMajorLDSA"] = False
         state["UnrollMajorLDSB"] = False
 
+    def findSparseVectorWidth(steps, optVW):
+      if steps == 0:
+        return optVW
+      optVW_new = max(optVW // 2, 1)
+      if optVW_new == 1:
+        return optVW
+      else:
+        return findSparseVectorWidth(steps-1, optVW_new)
+
     if state["VectorWidthA"] == -1:
       if state["EnableMatrixInstruction"]:
         regPerElem = state["ProblemType"]["DataType"].numRegisters()
@@ -1269,8 +1278,8 @@ class Solution(collections.abc.Mapping):
             break
           else:
             optVW //= 2
-        if state["ProblemType"]["Sparse"]:
-          state["VectorWidthA"] = 1
+        if state["ProblemType"]["Sparse"] == 1:
+          state["VectorWidthA"] = max(findSparseVectorWidth(2, state["VectorWidthA"]), 1)
       else:
         state["VectorWidthA"] = 1
 
@@ -1284,13 +1293,10 @@ class Solution(collections.abc.Mapping):
             break
           else:
             optVW //= 2
-        if state["ProblemType"]["Sparse"]:
-          state["VectorWidthB"] = 1
+        if state["ProblemType"]["Sparse"] == 2:
+          state["VectorWidthB"] = max(findSparseVectorWidth(2, state["VectorWidthB"]), 1)
       else:
         state["VectorWidthB"] = 1
-
-    if state["ProblemType"]["Sparse"] and not state["DirectToVgprSparseMetadata"]:
-      state["VectorWidthMetadata"] = state["VectorWidthA"] if state["ProblemType"]["Sparse"] == 1 else state["VectorWidthB"]
 
     def isLDSTrEnabled(asmCaps: Dict, hasLDSTrans: bool, unrollMajorLDS: bool, dtv: bool, numBytes: int):
       if unrollMajorLDS:
@@ -1329,6 +1335,9 @@ class Solution(collections.abc.Mapping):
 
     if state["enableLDSTrB"]:
       state["VectorWidthB"] = 1
+
+    if state["ProblemType"]["Sparse"] and not state["DirectToVgprSparseMetadata"]:
+      state["VectorWidthMetadata"] = state["VectorWidthA"] if state["ProblemType"]["Sparse"] == 1 else state["VectorWidthB"]
 
     # The real value of "1LDSBuffer" will be determined later (when it is -1), not here
 
