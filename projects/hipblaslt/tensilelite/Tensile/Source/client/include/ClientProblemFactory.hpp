@@ -102,6 +102,7 @@ namespace TensileLite
             bool                             m_useUserArgs;
             bool                             m_swizzleTensorA;
             bool                             m_swizzleTensorB;
+            int                              m_metadataLayout;
         };
 
     } // namespace Client

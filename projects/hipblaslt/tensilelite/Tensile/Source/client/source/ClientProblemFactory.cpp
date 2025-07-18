@@ -54,6 +54,7 @@ namespace TensileLite
             , m_useUserArgs(false)
             , m_swizzleTensorA(false)
             , m_swizzleTensorB(false)
+            , m_metadataLayout(args["metadata-layout"].as<int>())
         {
             using std::static_pointer_cast;
 
@@ -324,7 +325,7 @@ namespace TensileLite
                             rv.back().setKernelLanguage(m_kernelLanguage);
                             rv.back().setPerformanceMetric(m_performanceMetric);
                             rv.back().setDeterministicMode(m_deterministicMode);
-                            rv.back().setSparse(m_sparse);
+                            rv.back().setSparse(m_sparse, m_metadataLayout);
                             rv.back().setActivationType(m_activationType);
                             rv.back().setWorkspaceSize(m_maxWorkspaceSize);
                             rv.back().setSwizzleTensorA(m_swizzleTensorA);

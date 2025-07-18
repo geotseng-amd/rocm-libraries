@@ -467,7 +467,8 @@ namespace TensileLite
                                  TensorDescriptor const& tensor,
                                  TensorDescriptor const& tensorC,
                                  TensorDescriptor const& tensorMeta,
-                                 size_t                  dim)
+                                 size_t                  dim,
+                                 bool                    metadataLayout)
         {
             auto const& sizes      = tensor.sizes();
             auto const& sizesC     = tensorC.sizes();
@@ -490,19 +491,24 @@ namespace TensileLite
                 std::vector<size_t> coord(tensor.dimensions());
                 std::vector<size_t> coordC(tensorC.dimensions());
                 std::vector<size_t> coordMeta(tensorMeta.dimensions());
+                std::vector<size_t> _sizesMeta(tensorMeta.dimensions());
                 CoordNumberedExclude(
                     loop, coord.begin(), coord.end(), sizes.begin(), sizes.end(), dim);
                 CoordNumberedExclude(
                     loop, coordC.begin(), coordC.end(), sizesC.begin(), sizesC.end(), dim);
-                //metadata is always a tranpose matrix, so the dimension will always at 0.
+                //metadata is always a tranpose matrix until we use metadataLayout now.
+                for(int i = 0; i < tensorMeta.dimensions(); i++)
+                {
+                    _sizesMeta[i] = sizesMeta[i];
+                }
+
                 CoordNumberedExclude(loop,
                                      coordMeta.begin(),
                                      coordMeta.end(),
-                                     sizesMeta.begin(),
-                                     sizesMeta.end(),
-                                     0);
-
-                coordMeta[0] = 0;
+                                     _sizesMeta.begin(),
+                                     _sizesMeta.end(),
+                                     metadataLayout);
+                coordMeta[metadataLayout] = 0;
 
                 for(size_t compressDimIdx = 0; compressDimIdx < dimSize;
                     compressDimIdx += 4) //traverse along compressdim
@@ -560,10 +566,10 @@ namespace TensileLite
                     }
                     //meta Data coord
                     size_t shift4bit = (compressDimIdx / 4 % 2) * 4;
-                    coordMeta[0]     = compressDimIdx / 8;
+                    coordMeta[metadataLayout]     = compressDimIdx / 8;
                     //calculate flatten index of dstMeta
                     size_t flattenIdx = CoordFlattenIndex(
-                        coordMeta.begin(), coordMeta.end(), sizesMeta.begin(), sizesMeta.end());
+                        coordMeta.begin(), coordMeta.end(), _sizesMeta.begin(), _sizesMeta.end());
                     // store metaData to dstMeta
                     dstMeta[flattenIdx] |= metaData << shift4bit;
                 }
@@ -577,7 +583,8 @@ namespace TensileLite
                                          TensorDescriptor const& tensor,
                                          TensorDescriptor const& tensorC,
                                          TensorDescriptor const& tensorMeta,
-                                         size_t                  dim)
+                                         size_t                  dim,
+                                         bool                    metadataLayout)
         {
             throw std::runtime_error("SparseMatrix doesn't support Int8x4.");
         }
@@ -590,11 +597,12 @@ namespace TensileLite
                                         TensorDescriptor const& tensor,
                                         TensorDescriptor const& tensorC,
                                         TensorDescriptor const& tensorMeta,
-                                        size_t                  dim)
+                                        size_t                  dim,
+                                        bool                    metadataLayout)
         {
             pruneSparseArray(mode, dstPruned, tensor, dim);
             compressSparseArray(
-                dstCompressed, dstMeta, dstPruned, tensor, tensorC, tensorMeta, dim);
+                dstCompressed, dstMeta, dstPruned, tensor, tensorC, tensorMeta, dim, metadataLayout);
         }
 
         void initCPUSparseInput(PruneSparseMode         mode,
@@ -604,7 +612,8 @@ namespace TensileLite
                                 TensorDescriptor const& tensor,
                                 TensorDescriptor const& tensorC,
                                 TensorDescriptor const& tensorMeta,
-                                size_t                  dim)
+                                size_t                  dim,
+                                bool                    metadataLayout)
         {
 
             //alloc compressed sparse buffer
@@ -618,7 +627,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::BFloat16:
                 initCPUSparseInputTemplate(mode,
@@ -628,7 +638,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::Int8:
                 initCPUSparseInputTemplate(mode,
@@ -638,7 +649,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::Float8:
                 initCPUSparseInputTemplate(mode,
@@ -648,7 +660,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::BFloat8:
                 initCPUSparseInputTemplate(mode,
@@ -658,7 +671,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::Float8_fnuz:
                 initCPUSparseInputTemplate(mode,
@@ -668,7 +682,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             case rocisa::DataType::BFloat8_fnuz:
                 initCPUSparseInputTemplate(mode,
@@ -678,7 +693,8 @@ namespace TensileLite
                                            tensor,
                                            tensorC,
                                            tensorMeta,
-                                           dim);
+                                           dim,
+                                           metadataLayout);
                 break;
             default:
                 throw std::runtime_error("SparseMatrix doesn't support");
@@ -1649,7 +1665,8 @@ namespace TensileLite
                                         t,
                                         tC,
                                         tM,
-                                        tDim);
+                                        tDim,
+                                        problem.gemms[j].metadataLayout());
                                 }
                             }
                             gemmInitOffset
@@ -1718,7 +1735,8 @@ namespace TensileLite
                                                    t,
                                                    tC,
                                                    tM,
-                                                   tDim);
+                                                   tDim,
+                                                   problem.metadataLayout());
                             }
                         }
                     }

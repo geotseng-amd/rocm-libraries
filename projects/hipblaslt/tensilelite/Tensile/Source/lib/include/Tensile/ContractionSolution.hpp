@@ -523,6 +523,7 @@ namespace TensileLite
             bool supportDeviceUserArguments = false;
             bool swizzleTensorA             = false;
             bool swizzleTensorB             = false;
+            int  metadataLayout             = 0;
         };
 
         struct LinearModel

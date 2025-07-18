@@ -570,6 +570,7 @@ def writeClientConfigIni(forBenchmark, problemSizes, biasTypeArgs, factorDimArgs
             param('icache-flush-args', opt)
 
         param('sparse',   problemType.sparse)
+        param('metadata-layout', problemType.metadataLayout)
         param('high-precision-accumulate', problemType.highPrecisionAccumulate)
         param('strided-batched', problemType.stridedBatched)
         param('grouped-gemm', problemType.groupedGemm)
@@ -657,7 +658,6 @@ def writeClientConfigIni(forBenchmark, problemSizes, biasTypeArgs, factorDimArgs
         param("use-user-args",            globalParameters["UseUserArgs"])
         param("rotating-buffer-size",     globalParameters["RotatingBufferSize"])
         param("rotating-buffer-mode",     globalParameters["RotatingMode"])
-
 
 def writeClientConfig(
       forBenchmark,
