@@ -199,7 +199,7 @@ class LraTileAssignmentTransposedMFMA(LraTileAssignment):
             module.add(vectorStaticRemainder(dummy, kReg, dividendReg, waveWidth, tmpVgprRes, tmpSgprInfo, \
                 "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth))
             #FIXME: calculate this
-            module.add(vectorStaticRemainder(None, tReg, kReg, self.NUM_READ_ELEMENT_PER_THREAD, tmpVgprRes, tmpSgprInfo, "tileOffset=wtId%16"))
+            module.add(vectorStaticRemainder(dummy, tReg, kReg, self.NUM_READ_ELEMENT_PER_THREAD, tmpVgprRes, tmpSgprInfo, "tileOffset=wtId%16"))
             module.add(vectorStaticDivide(tReg, tReg, self.NUM_CONT_READ_ELEMENTS, tmpVgprRes, f"tileOffset//={self.NUM_CONT_READ_ELEMENTS}"))
             module.add(vectorStaticMultiply(vgpr(tReg), vgpr(tReg), strideTile, tmpSgprInfo, \
                 "tileOffset*=strideTile(%u)" % strideTile))
@@ -327,7 +327,7 @@ class LraTileAssignmentTransposedMFMAB8(LraTileAssignmentTransposedMFMA):
             module.add(vectorStaticRemainder(dummy, kReg, dividendReg, waveWidth, tmpVgprRes, tmpSgprInfo, \
                 "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth))
             #FIXME: calculate this
-            module.add(vectorStaticRemainder(None, tReg, kReg, self.NUM_READ_ELEMENT_PER_THREAD, tmpVgprRes, tmpSgprInfo, "tileOffset=wtId%8"))
+            module.add(vectorStaticRemainder(dummy, tReg, kReg, self.NUM_READ_ELEMENT_PER_THREAD, tmpVgprRes, tmpSgprInfo, "tileOffset=wtId%8"))
             module.add(vectorStaticDivide(tReg, tReg, self.NUM_CONT_READ_ELEMENTS, f"tileOffset//={self.NUM_CONT_READ_ELEMENTS}"))
             module.add(vectorStaticMultiply(vgpr(tReg), vgpr(tReg), strideTile, tmpSgprInfo, \
                 "tileOffset*=strideTile(%u)" % strideTile))
