@@ -39,9 +39,6 @@ __global__ void fill_kernel(T* A, size_t size, size_t offset, F f)
         A[idx + offset] = f(idx + offset);
 }
 
-#define WORKAROUND_FOR_FFM 1
-//FFM doesn't support v_nop which is in the asm code of fill_kernel()
-//Remove this workaround once FFM supports v_nop
 template <typename T, typename F>
 void fill_batch(T* A, size_t M, size_t N, size_t lda, size_t stride, size_t batch_count, const F& f)
 {
@@ -54,7 +51,6 @@ void fill_batch(T* A, size_t M, size_t N, size_t lda, size_t stride, size_t batc
         using type = T;
         size_64    = size_64 / type::packed_size;
     }
-#if !WORKAROUND_FOR_FFM
     constexpr size_t c_i32_max = size_t(std::numeric_limits<int32_t>::max());
     for(size_t offset = 0; offset < size_64; offset += c_i32_max)
     {
