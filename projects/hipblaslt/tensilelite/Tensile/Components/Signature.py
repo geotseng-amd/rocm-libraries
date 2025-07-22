@@ -89,6 +89,7 @@ class SignatureDefault(Signature):
         kernArgReg += 3*writer.states.rpga
         # TODO: Check correctness of the following
         kernArgReg += max(1,int(writer.states.bpeA/4)) # alpha
+        # TODO: alpha and beta should be computeType
         if kernel["ProblemType"]["UseBeta"]:
             kernArgReg += max(1,int(writer.states.bpeCexternal/4)) # beta
         kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides

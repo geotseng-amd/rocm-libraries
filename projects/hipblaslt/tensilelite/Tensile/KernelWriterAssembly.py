@@ -6859,12 +6859,48 @@ class KernelWriterAssembly(KernelWriter):
       elif (abbrev == 'fp4_fp8' and sourceSwap == False) or \
           (abbrev == 'fp8_fp4' and sourceSwap == True):
           return InstType.INST_F4_F8
+      elif (abbrev == 'fp6_fp4' and sourceSwap == False) or \
+          (abbrev == 'fp4_fp6' and sourceSwap == True):
+          return InstType.INST_F6_F4
+      elif (abbrev == 'fp4_fp6' and sourceSwap == False) or \
+          (abbrev == 'fp6_fp4' and sourceSwap == True):
+          return InstType.INST_F4_F6
+      elif (abbrev == 'fp8_fp6' and sourceSwap == False) or \
+          (abbrev == 'fp6_fp8' and sourceSwap == True):
+          return InstType.INST_F8_F6
+      elif (abbrev == 'fp6_fp8' and sourceSwap == False) or \
+          (abbrev == 'fp8_fp6' and sourceSwap == True):
+          return InstType.INST_F6_F8
+      elif (abbrev == 'fp8_bf6' and sourceSwap == False) or \
+          (abbrev == 'bf6_fp8' and sourceSwap == True):
+          return InstType.INST_F8_B6
+      elif (abbrev == 'bf6_fp8' and sourceSwap == False) or \
+          (abbrev == 'fp8_bf6' and sourceSwap == True):
+          return InstType.INST_B6_F8
       elif (abbrev == 'bf8_fp4' and sourceSwap == False) or \
           (abbrev == 'fp4_bf8' and sourceSwap == True):
           return InstType.INST_B8_F4
       elif (abbrev == 'fp4_bf8' and sourceSwap == False) or \
           (abbrev == 'bf8_fp4' and sourceSwap == True):
           return InstType.INST_F4_B8
+      elif (abbrev == 'bf6_fp4' and sourceSwap == False) or \
+          (abbrev == 'fp4_bf6' and sourceSwap == True):
+          return InstType.INST_B6_F4
+      elif (abbrev == 'fp4_bf6' and sourceSwap == False) or \
+          (abbrev == 'bf6_fp4' and sourceSwap == True):
+          return InstType.INST_F4_B6
+      elif (abbrev == 'bf8_fp6' and sourceSwap == False) or \
+          (abbrev == 'fp6_bf8' and sourceSwap == True):
+          return InstType.INST_B8_F6
+      elif (abbrev == 'fp6_bf8' and sourceSwap == False) or \
+          (abbrev == 'bf8_fp6' and sourceSwap == True):
+          return InstType.INST_F6_B8
+      elif (abbrev == 'bf8_bf6' and sourceSwap == False) or \
+          (abbrev == 'bf6_bf8' and sourceSwap == True):
+          return InstType.INST_B8_B6
+      elif (abbrev == 'bf6_bf8' and sourceSwap == False) or \
+          (abbrev == 'bf8_bf6' and sourceSwap == True):
+          return InstType.INST_B6_B8
       elif abbrev == 'e8':
         return InstType.INST_E8
       elif abbrev == 'e5m3':
@@ -10636,8 +10672,7 @@ class KernelWriterAssembly(KernelWriter):
               sparseA = kernel["ProblemType"]["Sparse"] == 1
               lrvw = kernel["LocalReadVectorWidth%s"%tc] // (2 if sparseA else 1)
               wlr = lrvw//kernel["MIInputPerThreadA"]
-              wlr = 1 if wlr == 0 else wlr
-              #if (self.states.localReadDoCntA)%(lrvw//kernel["MIInputPerThreadA"]):
+              wlr = max(wlr, 1)
               if kernel["ProblemType"]["Sparse"] and lrvw < kernel["MIInputPerThreadA"]:
                 if not sparseA:
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"])
@@ -10671,8 +10706,7 @@ class KernelWriterAssembly(KernelWriter):
               sparseB = kernel["ProblemType"]["Sparse"] == 2
               lrvw = kernel["LocalReadVectorWidth%s"%tc] // (2 if sparseB else 1)
               wlr = lrvw//kernel["MIInputPerThreadB"]
-              wlr = 1 if wlr == 0 else wlr
-              #if (self.states.localReadDoCntB)%(lrvw//kernel["MIInputPerThreadB"]):
+              wlr = max(wlr, 1)
               if kernel["ProblemType"]["Sparse"] and lrvw < kernel["MIInputPerThreadB"]:
                 if not sparseB:
                   offsetInc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["MatrixInstK"])

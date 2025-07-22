@@ -74,12 +74,22 @@ namespace rocisa
         case InstType::INST_F4:
             return DataType::Float4;
         case InstType::INST_F8_F4:
-            return DataType::Float8;
         case InstType::INST_F4_F8:
+        case InstType::INST_F6_F4:
+        case InstType::INST_F4_F6:
+        case InstType::INST_F8_F6:
+        case InstType::INST_F6_F8:
+        case InstType::INST_F8_B6:
+        case InstType::INST_B6_F8:
             return DataType::Float8;
         case InstType::INST_B8_F4:
-            return DataType::BFloat8;
         case InstType::INST_F4_B8:
+        case InstType::INST_B6_F4:
+        case InstType::INST_F4_B6:
+        case InstType::INST_B8_F6:
+        case InstType::INST_F6_B8:
+        case InstType::INST_B8_B6:
+        case InstType::INST_B6_B8:
             return DataType::BFloat8;
         default:
             throw std::runtime_error("Unknown instruction type");

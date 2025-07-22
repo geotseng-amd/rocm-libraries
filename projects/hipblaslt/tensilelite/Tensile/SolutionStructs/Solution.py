@@ -1749,7 +1749,7 @@ class Solution(collections.abc.Mapping):
         LdsBlockSizePerPad = state["LdsBlockSizePerPad%s"%tc]
         tmpBpe = state["ProblemType"]["DataType%s"%tc].numBytes() if state["ConvertAfterDS"] else state["ProblemType"]["MacDataType%s"%tc].numBytes()
         if LdsBlockSizePerPad == -1:
-          if state["EnableMatrixInstruction"]:
+          if state["EnableMatrixInstruction"] and tmpBpe != 0.75:
             if state["UnrollMajorLDS%s"%tc]:
               LdsBlockSizePerPad = roundUpToNearestMultiple(int(state["_DepthU%s"%tc] * tmpBpe), 128)
               if state["_DepthU%s"%tc] * tmpBpe * state["VectorWidth%s"%tc] > 128:
@@ -1877,7 +1877,7 @@ class Solution(collections.abc.Mapping):
           if isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
             if state["LocalReadVectorWidthB"] != maxLRVWB:
               reject(state, printRejectionReason, f"gfx1250 requires lrvwB == {maxLRVWB} for MacDataTypeB {state['ProblemType']['MacDataTypeB']}, actual value: {state['LocalReadVectorWidthB']}")
-          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
+          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeB"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
             if state["LocalReadVectorWidthB"] < state["MIInputPerThread"] // 2:
               reject(state, printRejectionReason, "LocalReadVectorWidthB < %u" %(state["MIInputPerThread"] // 2))
           elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["MacDataTypeB"].is8bitFloat() and (state["MatrixInstK"] in [64, 128,])):
@@ -1944,7 +1944,7 @@ class Solution(collections.abc.Mapping):
       def calcOptGRVW(lrvw: int, unrollMajorLDS: bool, datatype: DataType) -> int:
         # with UnrollMajorLDS, GRVW need to less or equal than LRVW to have conflict free LDS read with padding.
         optGRVW = lrvw if unrollMajorLDS else 4 / datatype.numRegisters()
-        if optGRVW * datatype.numBytes() > 16:
+        if optGRVW * datatype.numBytes() > 16 and not(isaInfoMap[isa].asmCaps["HasWMMA_f8f6f4"] and datatype.numBytes() == 0.75):
           optGRVW = int(16 // datatype.numBytes())
         return optGRVW
 
@@ -2126,14 +2126,14 @@ class Solution(collections.abc.Mapping):
           partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"] % state["GlobalReadVectorWidthA"] != 0)
           if partialA:
             limitBytes = 24 if state["ProblemType"]["DataType"].is6bitFloat else 16
-            glvwAlimit = int(limitBytes / state["ProblemType"]["DataType"].numBytes())
+            glvwAlimit = int(limitBytes / state["ProblemType"]["MacDataTypeA"].numBytes())
             if state["SourceSwap"]:
               matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
               glvwAlimit = matrixInstM * state["VectorWidthA"]
             else:
               matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
               glvwAlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstN)
-            if state["ProblemType"]["DataType"].numRegisters() == 0.25:
+            if state["ProblemType"]["MacDataTypeA"].numRegisters() == 0.25:
               glvwAlimit = max(glvwAlimit, 4)
 
             # reduce GLVA if GLVA larger than MIOVW
@@ -2200,14 +2200,14 @@ class Solution(collections.abc.Mapping):
           partialB = state["ProblemType"]["TLUB"] and (state["AssertFree1ElementMultiple"] % state["GlobalReadVectorWidthB"] != 0)
           if partialB:
             limitBytes = 24 if state["ProblemType"]["DataType"].is6bitFloat else 16
-            glvwBlimit = int(limitBytes / state["ProblemType"]["DataType"].numBytes())
+            glvwBlimit = int(limitBytes / state["ProblemType"]["MacDataTypeB"].numBytes())
             if state["SourceSwap"]:
               matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
               glvwBlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstM)
             else:  # use origin shiftptr for B
               matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
               glvwBlimit = matrixInstN * state["VectorWidthB"]
-            if state["ProblemType"]["DataType"].numRegisters() == 0.25:
+            if state["ProblemType"]["MacDataTypeB"].numRegisters() == 0.25:
               glvwBlimit = max(glvwBlimit, 4)
 
             # reduce GLVB if GLVB larger than MIOVW
