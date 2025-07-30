@@ -1523,16 +1523,7 @@ class Solution(collections.abc.Mapping):
     # TODO: remove this if edge and tail are supported for fp4/fp6/bf6
     if isa[:2] == (12, 5) and state["KernelLanguage"] == "Assembly" \
       and (state["ProblemType"]["DataType"].isFloat4() or state["ProblemType"]["DataType"].is6bitFloat()):
-      if state["ProblemType"]["DataType"].is6bitFloat():
-        state["AssertFree0ElementMultiple"] = 1
-        state["AssertFree1ElementMultiple"] = 1
-        state["AssertSummationElementMultiple"] = 16
-        if not state["ProblemType"]["TransposeA"]:
-          state["AssertFree0ElementMultiple"] = 16
-        if state["ProblemType"]["TransposeB"]:
-          state["AssertFree1ElementMultiple"] = 16
-
-      if state["ProblemType"]["DataType"].isFloat4():
+      if state["ProblemType"]["MacDataTypeA"].isFloat4() or state["ProblemType"]["MacDataTypeB"].isFloat4():
         if not state["enableLDSTrA"] and not state["UnrollMajorLDSA"]:
           reject(state, printRejectionReason, "Currently FP4 requires LDSTrInst == True for UnrolledMajorLDSA == False")
           return
@@ -1549,6 +1540,15 @@ class Solution(collections.abc.Mapping):
         # Currently we only support fp4 tail-loop with AssertSummationElementMultiple = 8.
         # TODO: Enalbe tail-loop with arbitrary number
         state["AssertSummationElementMultiple"] = 8
+
+      if state["ProblemType"]["MacDataTypeA"].is6bitFloat() or state["ProblemType"]["MacDataTypeB"].is6bitFloat():
+        state["AssertFree0ElementMultiple"] = 1
+        state["AssertFree1ElementMultiple"] = 1
+        state["AssertSummationElementMultiple"] = 16
+        if not state["ProblemType"]["TransposeA"]:
+          state["AssertFree0ElementMultiple"] = 16
+        if state["ProblemType"]["TransposeB"]:
+          state["AssertFree1ElementMultiple"] = 16
 
     state["AssertSummationElementMultiple"] = max(state["ProblemType"]["MXBlockA"], state["AssertSummationElementMultiple"])
     state["AssertSummationElementMultiple"] = max(state["ProblemType"]["MXBlockB"], state["AssertSummationElementMultiple"])

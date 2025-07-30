@@ -288,7 +288,7 @@ namespace TensileLite
                 return cast<Accumulator>(Transform<E5M3>::Input(typedPtr[pos], aConjugate));
             }
             break;
-            break;
+                break;
             case rocisa::DataType::XFloat32:
             case rocisa::DataType::ComplexFloat:
             case rocisa::DataType::ComplexDouble:
@@ -745,13 +745,13 @@ namespace TensileLite
                   typename ComputeInputType
                   , std::enable_if_t<true
 #ifdef TENSILE_USE_FP6
-                                    && !std::is_same<Float6x16, Type>::value
+                                       && !std::is_same<Float6x16, Type>::value
 #endif // #ifdef TENSILE_USE_FP6
 #ifdef TENSILE_USE_BF6
-                                    && !std::is_same<BFloat6x16, Type>::value
+                                       && !std::is_same<BFloat6x16, Type>::value
 #endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
-                                    && !std::is_same<Float4x2, Type>::value
+                                       && !std::is_same<Float4x2, Type>::value
 #endif // #ifdef TENSILE_USE_FP4
                 , bool>
             = true>
@@ -796,13 +796,13 @@ namespace TensileLite
                   typename ComputeInputType
             , std::enable_if_t<false
 #ifdef TENSILE_USE_FP6
-                                || std::is_same<Float6x16, Type>::value
+                                       || std::is_same<Float6x16, Type>::value
 #endif // #ifdef TENSILE_USE_FP6
 #ifdef TENSILE_USE_BF6
-                                || std::is_same<BFloat6x16, Type>::value
+                                       || std::is_same<BFloat6x16, Type>::value
 #endif // #ifdef TENSILE_USE_BF6
 #ifdef TENSILE_USE_FP4
-                                || std::is_same<Float4x2, Type>::value
+                                       || std::is_same<Float4x2, Type>::value
 #endif // #ifdef TENSILE_USE_FP4
                 , bool>
             = true>
@@ -824,19 +824,19 @@ namespace TensileLite
         >
         Accumulator multiply(
             ContractionProblemGemm const& problem,
-            ContractionInputs const&      inputs,
-            AType const* aPtr,
-            BType const* bPtr,
-            const size_t aIdx,
-            const size_t bIdx,
-            const bool aConjugate,
-            const bool bConjugate)
+                             ContractionInputs const&      inputs,
+                             AType const*                  aPtr,
+                             BType const*                  bPtr,
+                             const size_t                  aIdx,
+                             const size_t                  bIdx,
+                             const bool                    aConjugate,
+                             const bool                    bConjugate)
         {
 
             auto aVal = getElement<Accumulator, MathOpAccum, AType, ComputeInputTypeA>(
-                            problem, aPtr, aIdx, inputs.scaleA, aConjugate);
+                problem, aPtr, aIdx, inputs.scaleA, aConjugate);
             auto bVal = getElement<Accumulator, MathOpAccum, BType, ComputeInputTypeB>(
-                            problem, bPtr, bIdx, inputs.scaleB, bConjugate);
+                problem, bPtr, bIdx, inputs.scaleB, bConjugate);
 
             return multiply<Accumulator>(aVal, bVal);
         }
@@ -846,13 +846,13 @@ namespace TensileLite
         >
         Accumulator multiply(
             ContractionProblemGemm const& problem,
-            ContractionInputs const&      inputs,
-            AType const* aPtr,
-            BType const* bPtr,
-            const size_t aIdx,
-            const size_t bIdx,
-            const bool aConjugate,
-            const bool bConjugate)
+                             ContractionInputs const&      inputs,
+                             AType const*                  aPtr,
+                             BType const*                  bPtr,
+                             const size_t                  aIdx,
+                             const size_t                  bIdx,
+                             const bool                    aConjugate,
+                             const bool                    bConjugate)
         {
             AType aVal = Transform<AType>::Input(aPtr[aIdx], aConjugate);
             BType bVal = Transform<BType>::Input(bPtr[bIdx], bConjugate);
@@ -1061,9 +1061,9 @@ namespace TensileLite
                                 size_t aIdx = aIndex + (aI * aStride);
                                 size_t bIdx = bIndex + (bI * bStride);
                                 val += multiply<Inputs, Accumulator, MathOpAccum,
-                                                  typename Inputs::AType,
-                                                  typename Inputs::BType,
-                                                  typename Inputs::ComputeInputTypeA,
+                                                typename Inputs::AType,
+                                                typename Inputs::BType,
+                                                typename Inputs::ComputeInputTypeA,
                                                   typename Inputs::ComputeInputTypeB>(
                                     problem, inputs, aPtr, bPtr, aIdx, bIdx, aConjugate, bConjugate);
                             }
@@ -1162,7 +1162,7 @@ namespace TensileLite
                     int  pos       = 0;
                     if(problem.getParams().factorDim())
                         pos = int(int(dNum / problem.d().sizes()[0]) % problem.d().sizes()[1])
-                                + biasIndex;
+                              + biasIndex;
                     else
                         pos = int(dNum % problem.d().sizes()[0]) + biasIndex;
                     Accumulator bias = GetValue<Accumulator>(
@@ -1185,7 +1185,7 @@ namespace TensileLite
                 for(int i = 0; i < inputs.activationArgs.size(); i++)
                     actArgs.push_back(constVariantCast<Accumulator>(inputs.activationArgs[i]));
                 if(problem.useGradient() && problem.activationType() != ActivationType::None
-                    && problem.getParams().activationEnum() != ActivationType::None)
+                   && problem.getParams().activationEnum() != ActivationType::None)
                 {
                     Accumulator dataE = static_cast<Accumulator>(0);
                     if(problem.useE())
@@ -1200,17 +1200,17 @@ namespace TensileLite
                             aConjugate);
                     }
                     dataE = Activation(problem.activationType(),
-                                        dataE,
-                                        problem.getParams().activationEnum(),
-                                        actArgs);
+                                       dataE,
+                                       problem.getParams().activationEnum(),
+                                       actArgs);
                     resultD *= dataE;
                 }
                 else
                 {
                     resultD = Activation(problem.activationType(),
-                                            resultD,
-                                            problem.getParams().activationEnum(),
-                                            actArgs);
+                                         resultD,
+                                         problem.getParams().activationEnum(),
+                                         actArgs);
                 }
 
                 omp_set_num_threads(MAX_OMP_THREADS);
@@ -1235,7 +1235,7 @@ namespace TensileLite
                     resultD *= scaleD;
                 }
                 if(problem.useBias() && problem.useGradient()
-                    && (problem.biasSrc() == ContractionProblemGemm::D))
+                   && (problem.biasSrc() == ContractionProblemGemm::D))
                 {
                     ws[dIndex] = resultD;
                 }
@@ -1287,7 +1287,7 @@ namespace TensileLite
                 else
                 {
                     std::string msg = "Unsupported bias reduction source "
-                                        + std::to_string(problem.biasSrc()) + ".";
+                                      + std::to_string(problem.biasSrc()) + ".";
                     throw std::runtime_error(msg.c_str());
                 }
                 free(ws);
@@ -1335,20 +1335,20 @@ namespace TensileLite
             }
 
             return TensileLite::GemmTypeId(problem.a().dataType(),
-                                            problem.b().dataType(),
-                                            problem.c().dataType(),
-                                            problem.d().dataType(),
-                                            alphaType,
-                                            betaType,
-                                            problem.computeInputTypeA(),
-                                            problem.computeInputTypeB());
+                                           problem.b().dataType(),
+                                           problem.c().dataType(),
+                                           problem.d().dataType(),
+                                           alphaType,
+                                           betaType,
+                                           problem.computeInputTypeA(),
+                                           problem.computeInputTypeB());
         }
 
         template <typename Problem, typename Inputs>
         void SolveCPUTemplates(uint64_t const& contractionInputsTypeId,
-                                Problem const&  problem,
-                                Inputs const&   inputs,
-                                size_t          elementsToValidate)
+                               Problem const&  problem,
+                               Inputs const&   inputs,
+                               size_t          elementsToValidate)
         {
             bool isHPA = false;
             if constexpr(std::is_same<ContractionProblemGemm, Problem>::value)
@@ -1924,6 +1924,7 @@ namespace TensileLite
             }
 #endif // defined(TENSILE_USE_FP4) && defined(TENSILE_USE_BF6)
 #if defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4)
+            // DestDataType: S
             case TypedGemm_F8F4_S_S::TypeId():
             {
                 return ReferenceSolution<TypedGemm_F8F4_S_S>::SolveCPU(
@@ -1944,7 +1945,95 @@ namespace TensileLite
                 return ReferenceSolution<TypedGemm_F4B8_S_S>::SolveCPU(
                     problem, inputs, elementsToValidate);
             }
+            // DestDataType: F8
+            case TypedGemm_F8F4_F8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F8F4_F8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4F8_F8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4F8_F8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_B8F4_F8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_B8F4_F8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4B8_F8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4B8_F8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            // DestDataType: B8
+            case TypedGemm_F8F4_B8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F8F4_B8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4F8_B8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4F8_B8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_B8F4_B8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_B8F4_B8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4B8_B8_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4B8_B8_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
 #endif // defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4)
+#if defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4) && defined(TENSILE_USE_HALF)
+            // DestDataType: H
+            case TypedGemm_F8F4_H_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F8F4_H_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4F8_H_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4F8_H_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_B8F4_H_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_B8F4_H_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4B8_H_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4B8_H_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+#endif // defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4) && defined(TENSILE_USE_HALF)
+#if defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4) && defined(TENSILE_USE_BF16)
+            // DestDataType: B
+            case TypedGemm_F8F4_B_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F8F4_B_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4F8_B_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4F8_B_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_B8F4_B_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_B8F4_B_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+            case TypedGemm_F4B8_B_S::TypeId():
+            {
+                return ReferenceSolution<TypedGemm_F4B8_B_S, float>::SolveCPU(
+                    problem, inputs, elementsToValidate);
+            }
+#endif // defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP4) && defined(TENSILE_USE_BF16)
 #if defined(TENSILE_USE_FP8_BF8) && defined(TENSILE_USE_FP6)
             case TypedGemm_F8F6_S_S::TypeId():
             {
@@ -1996,8 +2085,8 @@ namespace TensileLite
         }
 
         void SolveCPU(ContractionProblem const* problem,
-                        ProblemInputs const*      inputs,
-                        size_t                    elementsToValidate)
+                      ProblemInputs const*      inputs,
+                      size_t                    elementsToValidate)
         {
             if(auto groupedProblem
                 = dynamic_cast<ContractionProblemGroupedGemm const*>(problem))

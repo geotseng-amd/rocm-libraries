@@ -510,24 +510,7 @@ namespace
         default:;
         }
 
-        if(typeA == rocisa::DataType::Float8_fnuz && typeB == rocisa::DataType::BFloat8_fnuz)
-        {
-            return rocisa::DataType::Float8_fnuz;
-        }
-        else if(typeA == rocisa::DataType::BFloat8_fnuz && typeB == rocisa::DataType::Float8_fnuz)
-        {
-            return rocisa::DataType::BFloat8_fnuz;
-        }
-
-        if(typeA == rocisa::DataType::Float8 && typeB == rocisa::DataType::BFloat8)
-        {
-            return rocisa::DataType::Float8;
-        }
-        else if(typeA == rocisa::DataType::BFloat8 && typeB == rocisa::DataType::Float8)
-        {
-            return rocisa::DataType::BFloat8;
-        }
-
+        if(typeA == rocisa::DataType::Float8 || typeA == rocisa::DataType::BFloat8 || typeA == rocisa::DataType::Float8_fnuz || typeA == rocisa::DataType::BFloat8_fnuz || typeA == rocisa::DataType::Float6 || typeA == rocisa::DataType::BFloat6 || typeA == rocisa::DataType::Float4) return typeA;
         return TensileLite::DataTypeInfo::Get(typeA).elementSize
                        <= TensileLite::DataTypeInfo::Get(typeB).elementSize
                    ? typeA
@@ -564,26 +547,7 @@ namespace
         default:;
         }
 
-        if(typeA == rocisa::DataType::Float8_fnuz
-           && typeB == rocisa::DataType::BFloat8_fnuz)
-        {
-            return rocisa::DataType::BFloat8_fnuz;
-        }
-        else if(typeA == rocisa::DataType::BFloat8_fnuz
-                && typeB == rocisa::DataType::Float8_fnuz)
-        {
-            return rocisa::DataType::Float8_fnuz;
-        }
-
-        if(typeA == rocisa::DataType::Float8 && typeB == rocisa::DataType::BFloat8)
-        {
-            return rocisa::DataType::BFloat8;
-        }
-        else if(typeA == rocisa::DataType::BFloat8 && typeB == rocisa::DataType::Float8)
-        {
-            return rocisa::DataType::Float8;
-        }
-
+        if(typeB == rocisa::DataType::Float8 || typeB == rocisa::DataType::BFloat8 || typeB == rocisa::DataType::Float8_fnuz || typeB == rocisa::DataType::BFloat8_fnuz ||typeB == rocisa::DataType::Float6 || typeB == rocisa::DataType::BFloat6 || typeB == rocisa::DataType::Float4) return typeB;
         return TensileLite::DataTypeInfo::Get(typeA).elementSize
                        <= TensileLite::DataTypeInfo::Get(typeB).elementSize
                    ? typeA
@@ -2400,7 +2364,8 @@ TensileLite::ProblemOverride TensileDataGemm2ProblemOverride(std::shared_ptr<voi
 {
     std::shared_ptr<TensileDataGemm> data = std::static_pointer_cast<TensileDataGemm>(gemmData);
     rocisa::DataType                 computeType      = rocisa::DataType::None;
-    rocisa::DataType                 computeInputType = data->problem.computeInputType();
+    // TODO: Check correctness of computeInputTypeA()
+    rocisa::DataType                 computeInputType = data->problem.computeInputTypeA();
 
     if(data->problem.f32XdlMathOp() == rocisa::DataType::XFloat32)
     {

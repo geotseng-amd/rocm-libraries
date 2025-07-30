@@ -587,6 +587,41 @@ _validMXGEMMTypes = [
     ("B6", "S", "S"),
     ("B6F6", "S", "S"),
     ("F4", "S", "S"),
+    ("F8", "H", "S"),
+    ("F8B8", "H", "S"),
+    ("B8", "H", "S"),
+    ("B8F8", "H", "S"),
+    ("F6", "H", "S"),
+    ("F6B6", "H", "S"),
+    ("B6", "H", "S"),
+    ("B6F6", "H", "S"),
+    ("F4", "H", "S"),
+    ("F8", "B", "S"),
+    ("F8B8", "B", "S"),
+    ("B8", "B", "S"),
+    ("B8F8", "B", "S"),
+    ("F6", "B", "S"),
+    ("F6B6", "B", "S"),
+    ("B6", "B", "S"),
+    ("B6F6", "B", "S"),
+    ("F4", "B", "S"),
+    ("F8", "F8", "S"),
+    ("F8B8", "F8", "S"),
+    ("B8", "F8", "S"),
+    ("B8F8", "F8", "S"),
+    ("F6", "F8", "S"),
+    ("F6B6", "F8", "S"),
+    ("B6", "F8", "S"),
+    ("B6F6", "F8", "S"),
+    ("F4", "F8", "S"),
+    ("F8", "B8", "S"),
+    ("F8B8", "B8", "S"),
+    ("B8", "B8", "S"),
+    ("B8F8", "B8", "S"),
+    ("F6", "B8", "S"),
+    ("F6B6", "B8", "S"),
+    ("B6", "B8", "S"),
+    ("B6F6", "B8", "S")
 ]
 
 _validMXGEMMBlock = [
@@ -921,6 +956,8 @@ class ProblemType(Mapping):
   #   See the discussion in ValidParameters.py for validGEMMTypes
   ################################################################################
   def _checkIfSupportedGEMMType(self):
+    # Here we use "DataType" instead of "MacDataTypeA(B)" for validation. It is totally fine cause we passed "MacDataTypeA(B)" into Client side.
+    # Ex: MacDataTypeA: b6, MacDataTypeB: f4 -> we can either choose "DataType: f4" or "DataType: b6"
     inType = self["DataType"]
     outType = self["DestDataType"]
     computeType = self["ComputeDataType"]

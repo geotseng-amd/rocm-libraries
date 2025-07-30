@@ -426,7 +426,7 @@ RocblasltContractionProblem construct_rocblaslt_problem(rocblaslt_handle        
     {
         setTo1(matmul_descr->compute_type, (void*)alpha_1, &alpha);
     }
-
+    // TODO: Split ComputeInputTypeA/B
     RocblasltContractionProblem problem{opA,
                                         opB,
                                         m,
