@@ -4508,7 +4508,7 @@ class KernelWriterAssembly(KernelWriter):
                 "Number of bytes accessed by the unroll loop"))
 
       # TODO: put this asmCaps into rocisa SSubU64
-      if self.states.asmCaps["s_sub_u64"]:
+      if self.states.asmCaps["s_sub_u64"] and self.states.asmCaps["HasWMMA_V3"]:
         with self.allocTmpSgpr(2, 2) as stmp:
           imod.add(SMovB32(sgpr(stmp.idx), sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx))))
           imod.add(SMovB32(sgpr(stmp.idx+1), 0))
@@ -4605,7 +4605,7 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.states.unrollIdx)), \
                   "start offset S in bytes"))
       # TODO: put this asmCaps into rocisa SSubU64
-      if self.states.asmCaps["s_sub_u64"]:
+      if self.states.asmCaps["s_sub_u64"] and self.states.asmCaps["HasWMMA_V3"]:
         imod.add(SSubU64(dst=sgpr(tmp, 2), src0=sgpr(tmp, 2), src1=sgpr("WrapU%s"%(tc), 2), comment="S - WrapU"))
       else:
         imod.add(SSubU32(dst=sgpr(tmp), src0=sgpr(tmp), src1=sgpr("WrapU%s"%tc), comment="S - WrapU"))
