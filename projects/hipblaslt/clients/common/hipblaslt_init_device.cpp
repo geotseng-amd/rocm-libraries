@@ -108,7 +108,7 @@ __device__ int8_t random_int<int8_t>(size_t idx)
 
 /*! \brief  generate a random number in range [-4,-3,-2,-1,0,1,2,3,4] */
 template <>
-__host__ __device__ hipblaslt_f4x2 random_int<hipblaslt_f4x2>(size_t idx)
+__device__ hipblaslt_f4x2 random_int<hipblaslt_f4x2>(size_t idx)
 {
     auto r0 = static_cast<int>(pseudo_random_device(2 * idx) % 9) - 4;
     auto r1 = static_cast<int>(pseudo_random_device(2 * idx + 1) % 9) - 4;
@@ -117,7 +117,7 @@ __host__ __device__ hipblaslt_f4x2 random_int<hipblaslt_f4x2>(size_t idx)
 
 /*! \brief  generate a random number in range [-7, -6, ..., 7] */
 template <>
-__host__ __device__ hipblaslt_f6x16 random_int<hipblaslt_f6x16>(size_t idx)
+__device__ hipblaslt_f6x16 random_int<hipblaslt_f6x16>(size_t idx)
 {
     using type               = hipblaslt_f6x16;
     int r[type::packed_size] = {0};
@@ -145,7 +145,7 @@ __host__ __device__ hipblaslt_f6x16 random_int<hipblaslt_f6x16>(size_t idx)
 
 /*! \brief  generate a random number in range [-28, -27, ..., 28] */
 template <>
-__host__ __device__ hipblaslt_bf6x16 random_int<hipblaslt_bf6x16>(size_t idx)
+__device__ hipblaslt_bf6x16 random_int<hipblaslt_bf6x16>(size_t idx)
 {
     using type               = hipblaslt_bf6x16;
     int r[type::packed_size] = {0};
@@ -190,7 +190,7 @@ __device__ int8_t random_hpl(size_t idx)
 
 /*! \brief  generate a random number in HPL-like [-0.5,0.5] doubles  */
 template <>
-__host__ __device__ hipblaslt_f4x2 random_hpl(size_t idx)
+__device__ hipblaslt_f4x2 random_hpl(size_t idx)
 {
     constexpr auto cvt_max_ui32_to_double
         = static_cast<double>(std::numeric_limits<uint32_t>::max());
@@ -201,7 +201,7 @@ __host__ __device__ hipblaslt_f4x2 random_hpl(size_t idx)
 
 /*! \brief  generate a random number in HPL-like [-0.5,0.5] doubles  */
 template <>
-__host__ __device__ hipblaslt_f6x16 random_hpl(size_t idx)
+__device__ hipblaslt_f6x16 random_hpl(size_t idx)
 {
     using type                          = hipblaslt_f6x16;
     double         r[type::packed_size] = {0.0};
@@ -233,7 +233,7 @@ __host__ __device__ hipblaslt_f6x16 random_hpl(size_t idx)
 
 /*! \brief  generate a random number in HPL-like [-0.5,0.5] doubles  */
 template <>
-__host__ __device__ hipblaslt_bf6x16 random_hpl(size_t idx)
+__device__ hipblaslt_bf6x16 random_hpl(size_t idx)
 {
     using type                          = hipblaslt_bf6x16;
     double         r[type::packed_size] = {0.0};
@@ -302,7 +302,7 @@ __host__ __device__ T
 }
 
 template <typename T>
-__host__ __device__ T norm_dist(uint32_t base_seed, size_t idx)
+__device__ T norm_dist(uint32_t base_seed, size_t idx)
 {
     hipblaslt_norm_dist::XorwowState state;
     hipblaslt_norm_dist::init_xorwow(&state, base_seed + idx); // Unique seed per thread
@@ -310,7 +310,7 @@ __host__ __device__ T norm_dist(uint32_t base_seed, size_t idx)
 }
 
 template <>
-__host__ __device__ hipblaslt_f4x2 norm_dist(uint32_t base_seed, size_t idx)
+__device__ hipblaslt_f4x2 norm_dist(uint32_t base_seed, size_t idx)
 {
     float r0 = norm_dist<float>(base_seed, 2 * idx);
     float r1 = norm_dist<float>(base_seed, 2 * idx + 1);
@@ -318,7 +318,7 @@ __host__ __device__ hipblaslt_f4x2 norm_dist(uint32_t base_seed, size_t idx)
 }
 
 template <>
-__host__ __device__ hipblaslt_f6x16 norm_dist(uint32_t base_seed, size_t idx)
+__device__ hipblaslt_f6x16 norm_dist(uint32_t base_seed, size_t idx)
 {
     using type                 = hipblaslt_f6x16;
     float r[type::packed_size] = {0.f};
@@ -345,7 +345,7 @@ __host__ __device__ hipblaslt_f6x16 norm_dist(uint32_t base_seed, size_t idx)
 }
 
 template <>
-__host__ __device__ hipblaslt_bf6x16 norm_dist(uint32_t base_seed, size_t idx)
+__device__ hipblaslt_bf6x16 norm_dist(uint32_t base_seed, size_t idx)
 {
     using type                 = hipblaslt_bf6x16;
     float r[type::packed_size] = {0.f};
