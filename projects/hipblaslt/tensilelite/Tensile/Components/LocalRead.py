@@ -685,7 +685,7 @@ class LocalReadMFMA(LocalRead):
                                     else:
                                         offset_val = offset_val + (blockOffsetSMFMA * blockId) * UnrollStride
                                 offset_val = int((rIdx * numElementPerRead * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpeDS"])
-                            elif kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32:
+                            elif writer.states.asmCaps["HasMFMA_f8f6f4"] and kernel["ProblemType"]["DataType"].is8bitFloat() and kernel["MatrixInstK"] > 32:
                                 incOffset = 0
                                 midIdx = numReadsPerUnroll // 2
                                 if rIdx >= midIdx:
