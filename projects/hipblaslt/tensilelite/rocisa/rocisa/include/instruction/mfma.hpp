@@ -124,7 +124,7 @@ namespace rocisa
 
         std::string typeConvert(InstType iType) const
         {
-            bool is_wmma_v3 = getAsmCaps()["HasWMMA_V3"];
+            size_t f8f6f4_k = getAsmCaps()["HasWMMA_V3"] ? 128 : 64;
             switch(iType)
             {
             case InstType::INST_F16:
@@ -144,21 +144,13 @@ namespace rocisa
             case InstType::INST_XF32:
                 return "xf32";
             case InstType::INST_F8:
-                if(is_wmma_v3)
-                    return variant[2] > 64 ? "f8f6f4" : "fp8_fp8";
-                return variant[2] > 32 ? "f8f6f4" : "fp8_fp8";
+                return (variant[2] >= f8f6f4_k) ? "f8f6f4" : "fp8_fp8";
             case InstType::INST_BF8:
-                if(is_wmma_v3)
-                    return variant[2] > 64 ? "f8f6f4" : "bf8_bf8";
-                return variant[2] > 32 ? "f8f6f4" : "bf8_bf8";
+                return (variant[2] >= f8f6f4_k) ? "f8f6f4" : "bf8_bf8";
             case InstType::INST_F8_BF8:
-                if(is_wmma_v3)
-                    return variant[2] > 64 ? "f8f6f4" : "fp8_bf8";
-                return variant[2] > 32 ? "f8f6f4" : "fp8_bf8";
+                return (variant[2] >= f8f6f4_k) ? "f8f6f4" : "fp8_bf8";
             case InstType::INST_BF8_F8:
-                if(is_wmma_v3)
-                    return variant[2] > 64 ? "f8f6f4" : "bf8_fp8";
-                return variant[2] > 32 ? "f8f6f4" : "bf8_fp8";
+                return (variant[2] >= f8f6f4_k) ? "f8f6f4" : "bf8_fp8";
             case InstType::INST_F6:
                 return "f8f6f4";
             case InstType::INST_BF6:
@@ -224,30 +216,31 @@ namespace rocisa
                 default:
                     break;
                 }
-            } else if(getAsmCaps()["HasWMMA_f8f6f4"])
+            }
+            else if(getAsmCaps()["HasWMMA_f8f6f4"])
             {
                 switch(instType)
                 {
                 case InstType::INST_F8:
-                    inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_FP8" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_FP8" : "";
                     break;
                 case InstType::INST_BF8:
-                    inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_BF8" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_BF8" : "";
                     break;
                 case InstType::INST_F8_BF8:
-                    inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_BF8" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP8 matrix_b_fmt:MATRIX_FMT_BF8" : "";
                     break;
                 case InstType::INST_BF8_F8:
-                    inputPermuteStr = variant[2] > 64 ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_FP8" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF8 matrix_b_fmt:MATRIX_FMT_FP8" : "";
                     break;
                 case InstType::INST_F6:
-                    inputPermuteStr = variant[2] > 32 ? " matrix_a_fmt:MATRIX_FMT_FP6 matrix_b_fmt:MATRIX_FMT_FP6" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP6 matrix_b_fmt:MATRIX_FMT_FP6" : "";
                     break;
                 case InstType::INST_BF6:
-                    inputPermuteStr = variant[2] > 32 ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_BF6 matrix_b_fmt:MATRIX_FMT_BF6" : "";
                     break;
                 case InstType::INST_F4:
-                    inputPermuteStr = variant[2] > 32 ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP4" : "";
+                    inputPermuteStr = (variant[2] > 64) ? " matrix_a_fmt:MATRIX_FMT_FP4 matrix_b_fmt:MATRIX_FMT_FP4" : "";
                     break;
                 default:
                     break;
