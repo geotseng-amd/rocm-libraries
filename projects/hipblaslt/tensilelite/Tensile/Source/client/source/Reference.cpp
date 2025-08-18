@@ -1022,7 +1022,7 @@ namespace TensileLite
                     if(mxsaCoord.size())
                         mxsaCoord[idx.a] = coord;
                     if(mxsbCoord.size())
-                        mxsbCoord[idx.a] = coord;
+                        mxsbCoord[idx.b] = coord;
                 }
 
                 for(size_t i = 0; i < problem.freeIndices().size(); i++)
