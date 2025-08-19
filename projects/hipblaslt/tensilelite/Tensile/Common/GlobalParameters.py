@@ -369,6 +369,8 @@ defaultBenchmarkCommonParameters = [
     {"BufferStore": [True]},
     {"DirectToVgprA": [False]},
     {"DirectToVgprB": [False]},
+    {"DirectToVgprMXSA": [False]},
+    {"DirectToVgprMXSB": [False]},
     {"DirectToVgprSparseMetadata": [False]},
     {"DirectToLds": [False]},
     {"UseSgprForGRO": [-1]},

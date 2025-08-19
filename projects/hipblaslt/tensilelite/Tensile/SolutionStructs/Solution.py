@@ -372,10 +372,18 @@ class Solution(collections.abc.Mapping):
     # tail loop optimization
     state["tailLoopOptA"] = True
     state["tailLoopOptB"] = True
+    if state["ProblemType"]["MXBlockA"]:
+      state["tailLoopOptMXSA"] = True
+    if state["ProblemType"]["MXBlockB"]:
+      state["tailLoopOptMXSB"] = True
 
     # Use nonDTL loads in DTL tail loop
     state["NonDTLTailLoopA"] = False
     state["NonDTLTailLoopB"] = False
+    if state["ProblemType"]["MXBlockA"]:
+      state["NonDTLTailLoopMXSA"] = False
+    if state["ProblemType"]["MXBlockB"]:
+      state["NonDTLTailLoopMXSB"] = False
 
     bpeA = state["ProblemType"]["DataTypeA"].numBytes()
     bpeB = state["ProblemType"]["DataTypeB"].numBytes()
@@ -388,16 +396,28 @@ class Solution(collections.abc.Mapping):
       state["NonDTLTailLoopA"] = not state["ProblemType"]["TLUA"]
     if (asem * bpeB) % 4 != 0:
       state["NonDTLTailLoopB"] = not state["ProblemType"]["TLUB"]
+    if state["ProblemType"]["MXBlockA"] and ((asem % 4) != 0):
+      state["NonDTLTailLoopMXSA"] = False
+    if state["ProblemType"]["MXBlockB"]and ((asem % 4) != 0):
+      state["NonDTLTailLoopMXSB"] = False
 
     if (state["ISA"] != (9, 4, 2)) or \
        (state["ProblemType"]["Sparse"]) or \
        (state["UseDotInstruction"]):
       state["tailLoopOptA"] = False
       state["tailLoopOptB"] = False
+      if state["ProblemType"]["MXBlockA"]:
+        state["tailLoopOptMXSA"] = False
+      if state["ProblemType"]["MXBlockB"]:
+        state["tailLoopOptMXSB"] = False
     if (state["DirectToVgprA"]):
       state["tailLoopOptA"] = False
     if (state["DirectToVgprB"]):
       state["tailLoopOptB"] = False
+    if state["ProblemType"]["MXBlockA"] and state["DirectToVgprMXSA"]:
+      state["tailLoopOptMXSA"] = False
+    if state["ProblemType"]["MXBlockB"] and state["DirectToVgprMXSB"]:
+      state["tailLoopOptMXSB"] = False
 
     # reorder globalread instructions if dtv and TN cases. (along coalesced dim)
     if state["ScheduleIterAlg"] == 3:
@@ -1363,7 +1383,6 @@ class Solution(collections.abc.Mapping):
       state["StaggerU"] = 0
 
     if state["ProblemType"]["MXBlockA"]:
-      state["DirectToVgprMXSA"] = state["DirectToVgprA"]
       if not state["DirectToVgprA"]:
         state["ThreadTileMXSA"] = state["ThreadTileA"]
         state["SubGroupMXSA"] = state["SubGroupA"]
@@ -1379,7 +1398,6 @@ class Solution(collections.abc.Mapping):
         state["UnrollMajorLDSMXSA"] = state["UnrollMajorLDSA"]
 
     if state["ProblemType"]["MXBlockB"]:
-      state["DirectToVgprMXSB"] = state["DirectToVgprB"]
       if not state["DirectToVgprB"]:
         state["ThreadTileMXSB"] = state["ThreadTileB"]
         state["SubGroupMXSB"] = state["SubGroupB"]

@@ -321,6 +321,8 @@ validParameters = { # we need to make sure this matches develop
     # Assembly only
     "DirectToVgprA": [False, True],
     "DirectToVgprB": [False, True],
+    "DirectToVgprMXSA": [False, True],
+    "DirectToVgprMXSB": [False, True],
     "DirectToVgprSparseMetadata": [False, True],
     # Attempt to load directly from global memory into LDS.
     # Assembly only
