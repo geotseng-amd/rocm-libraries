@@ -172,11 +172,18 @@ class LocalReadMFMA(LocalRead):
 
         tc = tP["tensorChar"]
         if tc == "A":
-            writer.states.localReadDoCntA += 1
+           writer.states.localReadDoCntA += 1
+        elif tc == "MXSA":
+            writer.states.localReadDoCntMXSA += 1
         elif tc == "Metadata":
             writer.states.localReadDoCntMetadata += 1
-        else:
+        elif tc == "B":
             writer.states.localReadDoCntB += 1
+        elif tc == "MXSB":
+            writer.states.localReadDoCntMXSB += 1
+        else:
+            raise Exception(f"unsupport tc %s{tc}")
+
         tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
         bpr              = 4 # bytes/register
@@ -208,13 +215,17 @@ class LocalReadMFMA(LocalRead):
         numVgpr  = int(ceil(blockWidth))
         if tc == 'A':
             lrvwTile = writer.states.lrvwTileA
+        elif tc == "MXSA":
+            lrvwTile = writer.states.lrvwTileMXSA
         elif tc == 'B':
             lrvwTile = writer.states.lrvwTileB
+        elif tc == "MXSB":
+            lrvwTile = writer.states.lrvwTileMXSB
         elif tc == "Metadata":
             lrvwTile = writer.states.lrvwTileMetadata
         else:
-            lrvwTile = 1
-        numElementPerRead = 1 if kernel["ConvertAfterDS"] else int(blockWidth * bpr // tP['bpe'] // lrvwTile)
+            raise Exception(f"unsupport tc %s{tc}")
+        numElementPerRead = 1 if kernel["ConvertAfterDS"] else (int(blockWidth * bpr) // tP['bpe'] // lrvwTile)
 
         # pack register
         if writer.states.archCaps["HasEccHalf"] or not writer.states.asmCaps["HasWMMA_V1"]:
