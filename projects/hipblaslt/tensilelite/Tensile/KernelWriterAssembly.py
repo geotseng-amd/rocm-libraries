@@ -48,7 +48,7 @@ from rocisa.instruction import BranchInstruction, BufferLoadB128, BufferLoadB32,
   DSLoadB16, DSLoadB32, DSLoadB64, DSLoadU16, DSStoreB128, DSStoreB16, DSStoreB32, \
   DSStoreB64, DSStoreB8, DSStoreInstruction, FlatLoadB128, FlatLoadB32, FlatLoadB64, \
   FlatLoadD16B16, FlatLoadD16HIB16, FlatStoreB128, FlatStoreB32, FlatStoreB64, \
-  FlatStoreD16B16, FlatStoreD16HIB16, MFMAInstruction, MUBUFReadInstruction, \
+  FlatStoreD16B16, FlatStoreD16HIB16, MXMFMAInstruction, MFMAInstruction, MUBUFReadInstruction, \
   MacroInstruction, SAShiftRightI32, SAbsI32, SAddCU32, SAddI32, SAddU32, SAndB32, \
   SAndB64, SAndN2B32, SAtomicDec, SBarrier, SBfmB32, SBitcmp1B32, SBranch, SCBranchSCC0, \
   SCBranchSCC1, SCBranchVCCNZ, SCBranchVCCZ, SCMovB32, SCSelectB32, SCmpEQI32, \
@@ -6515,19 +6515,35 @@ class KernelWriterAssembly(KernelWriter):
   def generateSrcStrForMFMA(self, kernel, tP, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, idxAB, bk=None):
     tc = tP["tensorChar"]
 
-    statesAorB = self.states.a if tP["isA"] else self.states.b
-    numVgprValuPerBlock = int(kernel["MIWaveTile%c"%tc] * kernel["MIInputPerThread%c"%tc] * tP["bpe"]) // self.states.bpr
-    numIterPerCoalescedRead = self.states.numIterPerCoalescedReadA if tP["isA"] else self.states.numIterPerCoalescedReadB
-    numReadsIterCoalesced   = self.states.numReadsIterCoalescedA   if tP["isA"] else self.states.numReadsIterCoalescedB
+    if tc == "A":
+      statesTc = self.states.a
+      numIterPerCoalescedRead = self.states.numIterPerCoalescedReadA
+      numReadsIterCoalesced = self.states.numReadsIterCoalescedA
+    elif tc == "MXSA":
+      statesTc = self.states.mxsa
+      numIterPerCoalescedRead = self.states.numIterPerCoalescedReadMXSA
+      numReadsIterCoalesced = self.states.numReadsIterCoalescedMXSA
+    elif tc == "B":
+      statesTc = self.states.b
+      numIterPerCoalescedRead = self.states.numIterPerCoalescedReadB
+      numReadsIterCoalesced = self.states.numReadsIterCoalescedB
+    elif tc == "MXSB":
+      statesTc = self.states.mxsb
+      numIterPerCoalescedRead = self.states.numIterPerCoalescedReadMXSB
+      numReadsIterCoalesced = self.states.numReadsIterCoalescedMXSB
+    else:
+      raise Exception(f"unsupport tc %s{tc}")
+
+    numVgprValuPerBlock = int(kernel["MIWaveTile%s"%tc] * ceil(kernel["MIInputPerThread%s"%tc] * tP["bpe"] / self.states.bpr))
 
     # calculate vgprBufferA_new ( or B) and offset for DirectToVgpr. Use u instead of m (number of local prefetch buffer does not matter)
-    m_or_u = u if kernel["DirectToVgpr%c"%tc] else m
+    m_or_u = u if kernel["DirectToVgpr%s"%tc] else m
     vgprBuffer_new = (m_or_u//numIterPerCoalescedRead)*numIterPerCoalescedRead
     vgprBuffer_new_offset = m_or_u%numIterPerCoalescedRead*innerUnroll*vgprPerInput
     # DirectToVgpr + pack special case
     # offset vgprBuffer_new
-    packDTV = self.states.packDTVA if tP["isA"] else self.states.packDTVB
-    convDTV = self.states.convDTVA if tP["isA"] else self.states.convDTVB
+    packDTV = self.states.packDTVA if (tc in ("A", "MXSA")) else self.states.packDTVB
+    convDTV = self.states.convDTVA if (tc in ("A", "MXSA")) else self.states.convDTVB
     if packDTV or convDTV:
       # DTV + pack case, offset bufferIdx for local read packing instructions
       numBi = kernel["LoopIters"]
@@ -6536,13 +6552,13 @@ class KernelWriterAssembly(KernelWriter):
     iui_new = (iui//numReadsIterCoalesced)*numReadsIterCoalesced
     iui_new_offset = iui%numReadsIterCoalesced*vgprPerInput
     ab_new = idxAB*vgprPerInput*numReadsIterCoalesced
-    abStr = "Valu%c_X%u_I%u+%u+%u+%u" % (tc, vgprBuffer_new, iui_new, ab_new, vgprBuffer_new_offset, iui_new_offset)
-    if kernel["DirectToVgpr%c"%tc] and not (packDTV or convDTV):
+    abStr = "Valu%s_X%u_I%u+%u+%u+%u" % (tc, vgprBuffer_new, iui_new, ab_new, vgprBuffer_new_offset, iui_new_offset)
+    if kernel["DirectToVgpr%s"%tc] and not (packDTV or convDTV):
       # overwrite aStr/bStr for DirectToVgpr (except for pack DTV case)
-      numVgprPerBlock = statesAorB.numVgprG2LAllocated
+      numVgprPerBlock = statesTc.numVgprG2LAllocated
       numVgprPerBlock //= 2 # DTV case, buffer is doubled. //2 to calculate single size
       ab_new += vregSetIdx * numVgprPerBlock + ( vgprBuffer_new * innerUnroll) * numVgprValuPerBlock
-      abStr  = "G2L%c+%u+%u" % (tc, ab_new, vgprBuffer_new_offset)
+      abStr  = "G2L%s+%u+%u" % (tc, ab_new, vgprBuffer_new_offset)
 
     if bk != None:
       abStr += "+%u"%(bk)
@@ -6743,6 +6759,8 @@ class KernelWriterAssembly(KernelWriter):
     is_wmma_v2       = self.states.asmCaps["HasWMMA_V2"]
     is_wmma_v3       = self.states.asmCaps["HasWMMA_V3"]
     numRegistersIn   = miInputType.numRegisters()
+    numRegistersInMXSA = kernel["ProblemType"]["DataTypeMXSA"].numRegisters() if kernel["ProblemType"]["MXBlockA"] else 0
+    numRegistersInMXSB = kernel["ProblemType"]["DataTypeMXSB"].numRegisters() if kernel["ProblemType"]["MXBlockB"] else 0
     numRegistersOut  = kernel["MIRegPerOut"]
     loopCounterName  = self.loopCounterName(kernel, self.states.unrollIdx)
     accs_per_wave    = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] \
@@ -6750,6 +6768,8 @@ class KernelWriterAssembly(KernelWriter):
     dividerFortidInK = kernel["MatrixInstN"] * kernel["MatrixInstB"]
     numMIInputA      = kernel["MIInputPerThreadA"]
     numMIInputB      = kernel["MIInputPerThreadB"]
+    numMIInputMXSA   = kernel["MIInputPerThreadMXSA"] if kernel["ProblemType"]["MXBlockA"] else 0
+    numMIInputMXSB   = kernel["MIInputPerThreadMXSB"] if kernel["ProblemType"]["MXBlockB"] else 0
     numMIInputM      = kernel["MIInputPerThreadMetadata"]
     numMIInput       = max(numMIInputA,numMIInputB)
     miInInstType, miOutInstType = dataTypeToMfmaInstTypePair(miInputType, kernel["SourceSwap"])
@@ -6764,6 +6784,8 @@ class KernelWriterAssembly(KernelWriter):
 
     vgprPerInputA    = int(numMIInputA * numRegistersIn)
     vgprPerInputB    = int(numMIInputB * numRegistersIn)
+    vgprPerInputMXSA = ceil(numMIInputMXSA * numRegistersInMXSA)
+    vgprPerInputMXSB = ceil(numMIInputMXSB * numRegistersInMXSB)
     vgprPerInputM    = int(ceil(numMIInputM // self.states.bpr))
     vgprPerInput     = max(vgprPerInputA,vgprPerInputB)
     shiftPerElement  = int(numRegistersIn * 32)
@@ -7274,6 +7296,20 @@ class KernelWriterAssembly(KernelWriter):
           Str0     = aStr if tPB["tile01Idx"] else bStr
           Str1     = bStr if tPB["tile01Idx"] else aStr
 
+          if kernel["ProblemType"]["MXBlockA"]:
+            mxsaStr_base = self.generateSrcStrForMFMA(kernel, tPA["MX"], innerUnroll, vregSetIdx, vgprPerInputMXSA, m, u, iui, idxA)
+            mxsaStr = vgpr(mxsaStr_base, vgprPerInputMXSA)
+          else:
+            mxsaStr = "127"
+          if kernel["ProblemType"]["MXBlockB"]:
+            mxsbStr_base = self.generateSrcStrForMFMA(kernel, tPB["MX"], innerUnroll, vregSetIdx, vgprPerInputMXSB, m, u, iui, idxB)
+            mxsbStr = vgpr(mxsbStr_base, vgprPerInputMXSB)
+          else:
+            mxsbStr = "127"
+
+          StrMX0 = mxsaStr if tPB["tile01Idx"] else mxsbStr
+          StrMX1 = mxsbStr if tPB["tile01Idx"] else mxsaStr
+
           if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
             idxM     = idxB if kernel["ProblemType"]["Sparse"] == 2 else idxA
             m_new    = idxM * (self.states.numReadsIterCoalescedMetadata if not kernel["enableLDSTrMetadata"] else ceil(self.states.numReadsIterCoalescedMetadata / 2) * 2)
@@ -7359,9 +7395,13 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["SourceSwap"]:
               src0 = Str1
               src1 = Str0
+              srcMX0 = StrMX1
+              srcMX1 = StrMX0
             else:
               src0 = Str0
               src1 = Str1
+              srcMX0 = StrMX0
+              srcMX1 = StrMX1
 
             variant = [kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], kernel["MatrixInstB"]]
 
@@ -7447,6 +7487,13 @@ class KernelWriterAssembly(KernelWriter):
                                        a=src0, b=src1, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), neg=neg_flag,\
                                        comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
                 imod.add(tf32mod)
+              elif kernel["ProblemType"]["MXBlockA"] or kernel["ProblemType"]["MXBlockB"]:
+                block = max(kernel["ProblemType"]["MXBlockA"], kernel["ProblemType"]["MXBlockB"])
+                imod.add(MXMFMAInstruction(instType=miInInstType, accType=miOutInstType, variant=variant, \
+                                       acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
+                                       a=src0, b=src1, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), \
+                                       mxsa=srcMX0, mxsb=srcMX1, block=block,
+                                       comment="left value = %s[%u+%u:%u+%u]" % (accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx)))
               else:
                 imod.add(MFMAInstruction(instType=miInInstType, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
                                        acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
