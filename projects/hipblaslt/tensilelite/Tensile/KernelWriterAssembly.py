@@ -4484,39 +4484,35 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lraDeclareAddresses(self, kernel, tP):
     module = Module("lraDeclareAddresses")
-    if tP["isA"]:
-      module.addComment0("N/A")
+    tc = tP["tensorChar"]
 
-    else:
-      # no need to generate add code if LdsOffset is 0 or DirectToVgprB
-      if kernel["LdsOffset%s"%tP["tensorChar"]] == 0 \
-          or (tP["isMXSA"] and kernel["DirectToVgprMXSA"]) \
-          or (tP["isB"] and kernel["DirectToVgprB"]) \
-          or (tP["isMXSB"] and kernel["DirectToVgprMXSB"]):
-        module = Module("lraDeclareAddresses (Empty)")
-      else:
-        module.add(VAddCOU32(
-            dst=vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
-            dst1=VCC(), \
-            src0=hex(kernel["LdsOffset%s"%tP["tensorChar"]]), \
-            src1=vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
-            comment=" += LdsOffset%s (lower)"%tP["tensorChar"]))
-    numLra = 0
+    # no need to generate add code if LdsOffset is 0 or DirectToVgprB
+    if kernel["DirectToVgpr%s"%tc]:
+      module = Module("lraDeclareAddresses (Empty)")
+    elif (kernel["LdsOffset%s"%tc] != 0):
+      module.add(VAddCOU32(
+          dst=vgpr("LocalReadAddr%s+0"%tc), \
+          dst1=VCC(), \
+          src0=hex(kernel["LdsOffset%s"%tc]), \
+          src1=vgpr("LocalReadAddr%s+0"%tc), \
+          comment=" += LdsOffset%s (lower)"%tc))
+
     if tP["isA"]:
-      numLra = self.states.a.numVgprLocalReadAddr
+      numVgpr = self.states.a.numVgprLocalReadAddr
+    elif tP["isMXSA"]:
+      numVgpr = self.states.mxsa.numVgprLocalReadAddr
+    elif tP["isMXSB"]:
+      numVgpr = self.states.mxsb.numVgprLocalReadAddr
     elif tP["isB"]:
-      numLra = self.states.b.numVgprLocalReadAddr
-    elif tP["isM"]:
-      numLra = self.states.m.numVgprLocalReadAddr
+      numVgpr = self.states.b.numVgprLocalReadAddr
+    else:
+      raise Exception(f"unsupport tc %s{tc}")
 
-    if numLra > 1:
-      finalVgpr64K = vgpr("LocalReadAddr%s+1"%tP["tensorChar"])
-      module.add(VAddU32(dst=finalVgpr64K, src0=0x10000, src1= vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
-          comment="Final vgprLocalReadAddr%s+1 Offset Plus 64K"%tP["tensorChar"] ))
-    if numLra > 2:
-      finalVgpr128K = vgpr("LocalReadAddr%s+2"%tP["tensorChar"])
-      module.add(VAddU32(dst=finalVgpr128K, src0=0x20000, src1= vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
-          comment="Final vgprLocalReadAddr%s+2 Offset Plus 128K"%tP["tensorChar"] ))
+    if tc in ("A", "B", "MXSA", "MXSB"):
+      for i in range(1, numVgpr):
+        dst = vgpr("LocalReadAddr%s+%u"%(tc, i))
+        module.add(VAddU32(dst=dst, src0=65536*i, src1= vgpr("LocalReadAddr%s+0"%tc), \
+          comment="Final vgprLocalReadAddr%s+%u Offset Plus 64K"%(tc, i) ))
     return module
 
   def lraSwapAddressesForDTLPad(self, kernel, tP):
