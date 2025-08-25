@@ -894,8 +894,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
             instPerPackM = 1.5
           elif kernel["MIInputPerThreadMetadata"] == 4:
             instPerPackM = 3
+          elif kernel["MIInputPerThreadMetadata"] == 8:
+            instPerPackM = 6
         elif kernel["MIInputPerThreadMetadata"] == 4:
           instPerPackM = 3
+        elif kernel["MIInputPerThreadMetadata"] == 8:
+          instPerPackM = 6
       packItems = []
       packItemsA = []
       packItemsB = []
@@ -936,12 +940,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 packINtemsA[j].append(packAItems.pop(0))
 
         if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
-          for j in range(self.states.numReadsIterCoalescedMetadata):
-            for n in range(ceil(instPerPackM)):
-              if packMItems:
-                packINtemsM[j].append(packMItems.pop(0))
-              else:
-                break
+          # for j in range(self.states.numReadsIterCoalescedMetadata):
+          for n in range(ceil(instPerPackM)):
+            if packMItems:
+              packINtemsM[0].append(packMItems.pop(0))
+            else:
+              break
 
         if packBItems:
           if kernel["ConvertAfterDS"] and kernel["ProblemType"]["DataTypeB"].isAnyFloat8():
@@ -969,12 +973,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
           while packMItems:
-            for j in range(self.states.numReadsIterCoalescedMetadata):
-              for n in range(ceil(instPerPackM)):
-                if packMItems:
-                  packINtemsM[j].append(packMItems.pop(0))
-                else:
-                  break
+            # for j in range(self.states.numReadsIterCoalescedMetadata):
+            for n in range(ceil(instPerPackM)):
+              if packMItems:
+                packINtemsM[0].append(packMItems.pop(0))
+              else:
+                break
 
         while packBItems:
           if kernel["ConvertAfterDS"] and kernel["ProblemType"]["DataTypeB"].isAnyFloat8():
@@ -1598,7 +1602,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # since packed register need to wait 2 quad cycle to finish packing
             # we insert pack instruction if we can, or s_nop
             remainLatency = 0
-            iterCode.addComment0("pack scheduling: curPackIdx:%u, numPack:%u, instPackLast:%s" %(curPackIdx,numPack,instPackLast))
+            iterCode.addComment0("pack scheduling: curPackIdx:%u, numPack:%u, instPackLast:%s" % (curPackIdx, numPack, instPackLast))
             if curPackIdx < numPack + 2:
               if len(instPackLast):
                 remainLatency = 2
@@ -3532,7 +3536,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.states.numReadsIterCoalescedMetadata = 1
     else:
       self.states.numReadsIterCoalescedMetadata  = 1
-    self.states.numIterPerCoalescedReadMetadata = max(1,self.states.numReadsIterCoalescedMetadata//kernel["InnerUnroll"])
+    self.states.numIterPerCoalescedReadMetadata = max(1,self.states.numReadsIterCoalescedMetadata // kernel["InnerUnroll"])
 
     if kernel["ScheduleIterAlg"] == 3 or kernel["ScheduleIterAlg"] == 2:
       self.states.numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
