@@ -35,7 +35,7 @@ from rocisa.instruction import BufferLoadB128, BufferLoadB192, BufferLoadB32, Bu
   DSLoadU8, DSStore2B32, DSStore2B64, DSStoreB128, DSStoreB16, DSStoreB96, DSStoreB256, \
   DSStoreB32, DSStoreB64, DSStoreB8, DSStoreInstruction, FlatLoadB128, FlatLoadB192, FlatLoadB32, \
   FlatLoadB64, FlatStoreB128, FlatStoreB32, FlatStoreB64, Instruction, \
-  MFMAInstruction, SBarrier, SBranch, SCBranchSCC0, SCBranchSCC1, SCBranchVCCNZ, SCmpLeU32, \
+  MXMFMAInstruction, MFMAInstruction, SBarrier, SBranch, SCBranchSCC0, SCBranchSCC1, SCBranchVCCNZ, SCmpLeU32, \
   SMFMAInstruction, SNop, SSetPrior, SSetRegIMM32B32, SSubU32, SWaitCnt, SWaitAlu, \
   SLongBranchPositive, VFmaMixF32, VMadMixF32, VMovB32, VNop
 from rocisa.register import RegisterPool
@@ -827,6 +827,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for iui in range(kernel["InnerUnroll"]):
         localReadCodeA = localReadCode.findNamedItem("LocalReadDoA_I%s"%(iui))
         localReadCodeB = localReadCode.findNamedItem("LocalReadDoB_I%s"%(iui))
+        localReadCodeMXSA = localReadCode.findNamedItem("LocalReadDoMXSA_I%s"%(iui))
+        localReadCodeMXSB = localReadCode.findNamedItem("LocalReadDoMXSB_I%s"%(iui))
         localReadCodeM = localReadCode.findNamedItem("LocalReadDoMetadata_I%s"%(iui))
         # In case localReadDo not generate localReadCode Module
         # and findNamedItem will return None type
@@ -835,20 +837,35 @@ class KernelWriter(metaclass=abc.ABCMeta):
           localReadCodeA = Module()
         if not localReadCodeB:
           localReadCodeB = Module()
+        if not localReadCodeMXSA:
+          localReadCodeMXSA = Module()
+        if not localReadCodeMXSB:
+          localReadCodeMXSB = Module()
         if not localReadCodeM:
           localReadCodeM = Module()
+
         if localReadCodeA.items():
           localReadCodeAB.add(localReadCodeA.popFirstItem())
+        if localReadCodeMXSA.items():
+          localReadCodeAB.add(localReadCodeMXSA.popFirstItem())
+        if localReadCodeMXSB.items():
+          localReadCodeAB.add(localReadCodeMXSB.popFirstItem())
         if localReadCodeM.items():
           localReadCodeAB.add(localReadCodeM.popFirstItem())
         if localReadCodeB.items():
           localReadCodeAB.add(localReadCodeB.popFirstItem())
+
         if localReadCodeA.itemsSize():
           localReadCodeAB.addItems(localReadCodeA.popFirstNItems(localReadCodeA.itemsSize()))
+        if localReadCodeMXSA.itemsSize():
+          localReadCodeAB.addItems(localReadCodeMXSA.popFirstNItems(localReadCodeMXSA.itemsSize()))
+        if localReadCodeMXSB.itemsSize():
+          localReadCodeAB.addItems(localReadCodeMXSB.popFirstNItems(localReadCodeMXSB.itemsSize()))
         if localReadCodeM.itemsSize():
           localReadCodeAB.addItems(localReadCodeM.popFirstNItems(localReadCodeM.itemsSize()))
         if localReadCodeB.itemsSize():
           localReadCodeAB.addItems(localReadCodeB.popFirstNItems(localReadCodeB.itemsSize()))
+
       localReadItems = localReadCodeAB.flatitems()
       localReadItemsThisLoop = localReadItems if iteration < isBarrier else []
       localReadItemsNextLoop = localReadItems if iteration >= isBarrier else []
@@ -1136,6 +1153,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           srcRegs = [inst.a, inst.b,]
         elif isinstance(inst, SMFMAInstruction):
           srcRegs = [inst.a, inst.b, inst.metadata]
+        elif isinstance(inst, MXMFMAInstruction):
+          srcRegs = [inst.a, inst.b, inst.mxsa, inst.mxsb,]
         else:
           srcRegs = inst.srcs
 
@@ -1757,10 +1776,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # numReadsIter    : in this loop, number of iteration we have read (data used in current loop)
         dataAtIterA = iteration//self.states.numIterPerCoalescedReadA - self.states.numItersPLR
         dataAtIterB = iteration//self.states.numIterPerCoalescedReadB - self.states.numItersPLR
+        dataAtIterMXSA = iteration//self.states.numIterPerCoalescedReadMXSA - self.states.numItersPLR if kernel["ProblemType"]["MXBlockA"] else (-self.states.numItersPLR)
+        dataAtIterMXSB = iteration//self.states.numIterPerCoalescedReadMXSB - self.states.numItersPLR if kernel["ProblemType"]["MXBlockB"] else (-self.states.numItersPLR)
+        maxDataAtIter = max(dataAtIterA, dataAtIterB, dataAtIterMXSA, dataAtIterMXSB)
+
         numReadsIterA = min(iteration+1, kernel["LoopIters"]//self.states.numIterPerCoalescedReadA - self.states.numItersPLR)
         numReadsIterB = min(iteration+1, kernel["LoopIters"]//self.states.numIterPerCoalescedReadB - self.states.numItersPLR)
-        skipReadsIterA = numReadsIterA - dataAtIterA - 1 if not dataAtIterA < max(dataAtIterA,dataAtIterB) else 0
-        skipReadsIterB = numReadsIterB - dataAtIterB - 1 if not dataAtIterB < max(dataAtIterA,dataAtIterB) else 0
+        numReadsIterMXSA = min(iteration+1, kernel["LoopIters"]//self.states.numIterPerCoalescedReadMXSA - self.states.numItersPLR) if kernel["ProblemType"]["MXBlockA"] else 0
+        numReadsIterMXSB = min(iteration+1, kernel["LoopIters"]//self.states.numIterPerCoalescedReadMXSB - self.states.numItersPLR) if kernel["ProblemType"]["MXBlockB"] else 0
+        maxNumberReadIter = max(numReadsIterA, numReadsIterMXSA, numReadsIterB, numReadsIterMXSB)
+
+        skipReadsIterA = numReadsIterA - dataAtIterA - 1 if not dataAtIterA < maxDataAtIter else 0
+        skipReadsIterMXSA = numReadsIterMXSA - dataAtIterMXSA - 1 if not dataAtIterMXSA < maxDataAtIter else 0
+        skipReadsIterB = numReadsIterB - dataAtIterB - 1 if not dataAtIterB < maxDataAtIter else 0
+        skipReadsIterMXSB = numReadsIterMXSB - dataAtIterMXSB - 1 if not dataAtIterMXSB < maxDataAtIter else 0
+
         # numPrefetchIter : in this loop, number of prefetch iteration we have read (data used in next loop)
         # currently we have localReadA and localReadB if iteration >= isBarrier
         # some case will not have localReads if PGR=0 or NoLoadLoop
@@ -1769,20 +1799,32 @@ class KernelWriter(metaclass=abc.ABCMeta):
         numPrefetchIter = 0 if iteration >= isBarrier and not hasLocalRead else numPrefetchIter
         skipReadsIterA += numPrefetchIter
         skipReadsIterB += numPrefetchIter
+        skipReadsIterMXSA += numPrefetchIter
+        skipReadsIterMXSB += numPrefetchIter
+
         # here the reads are prefetches so can skip them in the waitcnt
         # how many localreads can skip is based on how many iterations we prefetch.
         readFactorA = 2 if (tPA["localReadInstruction"].blockWidth == 6) else 1
         readFactorB = 2 if (tPB["localReadInstruction"].blockWidth == 6) else 1
         localReadsA = 0 if kernel["DirectToVgprA"] else self.states.numReadsPerIterA * skipReadsIterA * readFactorA
         localReadsB = 0 if kernel["DirectToVgprB"] else self.states.numReadsPerIterB * skipReadsIterB * readFactorB
-        localReads += localReadsA + localReadsB
+        localReadsMXSA = 0 if ((not kernel["ProblemType"]["MXBlockA"]) or kernel["DirectToVgprMXSA"]) else self.states.numReadsPerIterMXSA * skipReadsIterMXSA
+        localReadsMXSB = 0 if ((not kernel["ProblemType"]["MXBlockB"]) or kernel["DirectToVgprMXSB"]) else self.states.numReadsPerIterMXSB * skipReadsIterMXSB
+        localReads += (localReadsA + localReadsB + localReadsMXSA + localReadsMXSB)
         # some of localReads is interleaved after waitcnt in SIA3
         if kernel["ScheduleIterAlg"] == 3 and self.states.numItersPLR and\
-          (iteration < numReadsIterA or iteration < numReadsIterB or numPrefetchIter):
-          if ((iteration < numReadsIterA and not dataAtIterA < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
-            localReads -= self.states.numReadsPerIterA * readFactorA
-          if ((iteration < numReadsIterB and not dataAtIterB < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
-            localReads -= self.states.numReadsPerIterB * readFactorB
+          (iteration < maxNumberReadIter or numPrefetchIter):
+          if ((iteration < numReadsIterA and not dataAtIterA < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
+            localReads -= self.states.numReadsPerIterA
+          if kernel["ProblemType"]["MXBlockA"]:
+            if ((iteration < numReadsIterMXSA and not dataAtIterMXSA < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
+              localReads -= self.states.numReadsPerIterMXSA
+          if ((iteration < numReadsIterB and not dataAtIterB < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
+            localReads -= self.states.numReadsPerIterB
+          if kernel["ProblemType"]["MXBlockB"]:
+            if ((iteration < numReadsIterMXSB and not dataAtIterMXSB < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
+              localReads -= self.states.numReadsPerIterMXSB
+
           localReads += localReadsWaitcnt
           if iteration == 0 and kernel["UnrollMajorLDSB"] and not (kernel["ProblemType"]["DataTypeB"].isAnyFloat8() and kernel["ConvertAfterDS"]):
             # We issued LR with A[0]->B[0]->A[1:]->B[1:] order.
@@ -1797,6 +1839,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addComment0("numPrefetchIter=%u" % numPrefetchIter)
         iterCode.addComment0("dataAtIterA=%u numReadsIterA=%u skipReadsIterA=%u readsPerIterA=%u" % (dataAtIterA, numReadsIterA, skipReadsIterA, self.states.numReadsPerIterA))
         iterCode.addComment0("dataAtIterB=%u numReadsIterB=%u skipReadsIterB=%u readsPerIterB=%u" % (dataAtIterB, numReadsIterB, skipReadsIterB, self.states.numReadsPerIterB))
+        if kernel["ProblemType"]["MXBlockA"]:
+          iterCode.addComment0("dataAtIterMXSA=%u numReadsIterMXSA=%u skipReadsIterMXSA=%u readsPerIterMXSA=%u" % (dataAtIterMXSA, numReadsIterMXSA, skipReadsIterMXSA, self.states.numReadsPerIterMXSA))
+        if kernel["ProblemType"]["MXBlockB"]:
+          iterCode.addComment0("dataAtIterMXSB=%u numReadsIterMXSB=%u skipReadsIterMXSB=%u readsPerIterMXSB=%u" % (dataAtIterMXSB, numReadsIterMXSB, skipReadsIterMXSB, self.states.numReadsPerIterMXSB))
         if kernel["ScheduleIterAlg"] == 0 or kernel["ScheduleIterAlg"] == 1:
           for i in range (max(dataAtIterA,dataAtIterB),iteration+1):
             localWrites += countWeightedLocalWrite(self.codes.perIterLocalWrite[i][1])
