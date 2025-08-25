@@ -372,6 +372,7 @@ def roundUpToNearestMultiple(numerator, denominator):
     return ceilDivide(numerator,denominator)*int(denominator)
 
 def wmmaV3InputVgprLayout(wmma: Sequence[int], dtypeBitWidth: Optional[int] = None) -> Tuple[int]:
+    # wmmaV3InputVgprLayout: (numReadsUnroll, numVecTile, numVecUnroll, NumElementPerRead)
     wmma = tuple(wmma)
     if wmma == (16, 16, 4, 1):
         return (1, 16, 2, 2)
