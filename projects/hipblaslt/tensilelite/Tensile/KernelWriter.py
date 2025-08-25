@@ -880,8 +880,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
       ####
       if self.states.archCaps["HasEccHalf"] or not self.states.asmCaps["HasWMMA_V1"]:
         instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+        instPerRegPackMX = 4 - 1
       else:
         instPerRegPack = 1 if (kernel["ProblemType"]["DataType"].numRegisters() == 0.25) else 0
+        instPerRegPackMX = 1
+      instPerPackMXSA = 0
+      instPerPackMXSB = 0
+      if kernel["ProblemType"]["MXBlockA"] and (not kernel["UnrollMajorLDSMXSA"]):
+        instPerPackMXSA = int(kernel["MIInputPerThreadMXSA"] * kernel["ProblemType"]["DataTypeMXSA"].numRegisters() * instPerRegPackMX)
+      if kernel["ProblemType"]["MXBlockB"] and (not kernel["UnrollMajorLDSMXSB"]):
+        instPerPackMXSB = int(kernel["MIInputPerThreadMXSB"] * kernel["ProblemType"]["DataTypeMXSB"].numRegisters() * instPerRegPackMX)
+
       instPerPackA    = 0 if kernel["UnrollMajorLDSA"] else int(kernel["MIInputPerThreadA"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       instPerPackB    = 0 if kernel["UnrollMajorLDSB"] else int(kernel["MIInputPerThreadB"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       if kernel["ConvertAfterDS"]:
@@ -952,22 +961,33 @@ class KernelWriter(metaclass=abc.ABCMeta):
           instPerPackM = 3
         elif kernel["MIInputPerThreadMetadata"] == 8:
           instPerPackM = 6
+
       packItems = []
       packItemsA = []
       packItemsB = []
+      packItemsMXSA = []
+      packItemsMXSB = []
       packItemsM = []
+      maxReadIterCoal = max(self.states.numReadsIterCoalescedA, self.states.numReadsIterCoalescedB, self.states.numReadsIterCoalescedMetadata, \
+                            self.states.numReadsIterCoalescedMXSA, self.states.numReadsIterCoalescedMXSB)
       for iui in range(kernel["InnerUnroll"]):
-        packINtems = [ [] for j in range(max(self.states.numReadsIterCoalescedA,self.states.numReadsIterCoalescedB,self.states.numReadsIterCoalescedMetadata)) ]
+        packINtems = [ [] for j in range(maxReadIterCoal) ]
         packINtemsA = packINtems
         packINtemsB = packINtems
+        packINtemsMXSA = packINtems
+        packINtemsMXSB = packINtems
         packINtemsM = packINtems
         if schedulePackConsiderMetadata:
-          packINtemsA = [ [] for j in range(max(self.states.numReadsIterCoalescedA,self.states.numReadsIterCoalescedB,self.states.numReadsIterCoalescedMetadata)) ]
-          packINtemsB = [ [] for j in range(max(self.states.numReadsIterCoalescedA,self.states.numReadsIterCoalescedB,self.states.numReadsIterCoalescedMetadata)) ]
-          packINtemsM = [ [] for j in range(max(self.states.numReadsIterCoalescedA,self.states.numReadsIterCoalescedB,self.states.numReadsIterCoalescedMetadata)) ]
+          packINtemsA    = [ [] for j in range(maxReadIterCoal) ]
+          packINtemsB    = [ [] for j in range(maxReadIterCoal) ]
+          packINtemsMXSA = [ [] for j in range(maxReadIterCoal) ]
+          packINtemsMXSB = [ [] for j in range(maxReadIterCoal) ]
+          packINtemsM    = [ [] for j in range(maxReadIterCoal) ]
 
         packA = packCode.findNamedItem("packA_I%s"%(iui))
         packB = packCode.findNamedItem("packB_I%s"%(iui))
+        packMXSA = packCode.findNamedItem("packMXSA_I%s"%(iui))
+        packMXSB = packCode.findNamedItem("packMXSB_I%s"%(iui))
         packM = packCode.findNamedItem("packMetadata_I%s"%(iui))
         # In case localReadDo not generate pack Module
         # and findNamedItem will return None type
@@ -978,6 +998,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if not packB:
           packB = Module()
         packBItems = packB.flatitems()
+        if not packMXSA:
+          packMXSA = Module()
+        packMXSAItems = packMXSA.flatitems()
+        if not packMXSB:
+          packMXSB = Module()
+        packMXSBItems = packMXSB.flatitems()
         if not packM:
           packM = Module()
         packMItems = packM.flatitems()
@@ -991,6 +1017,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
               for n in range(instPerPackA):
                 packINtemsA[j].append(packAItems.pop(0))
 
+        if packAItems:
+          for j in range(self.states.numReadsIterCoalescedMXSA):
+            for n in range(instPerPackMXSA):
+              packINtemsMXSA[j].append(packMXSAItems.pop(0))
+
         if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
           # for j in range(self.states.numReadsIterCoalescedMetadata):
           for n in range(ceil(instPerPackM)):
@@ -998,6 +1029,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
               packINtemsM[0].append(packMItems.pop(0))
             else:
               break
+
+        if packMXSBItems:
+          for j in range(self.states.numReadsIterCoalescedMXSB):
+            for n in range(instPerPackMXSB):
+              packINtemsMXSB[j].append(packMXSBItems.pop(0))
 
         if packBItems:
           if kernel["ConvertAfterDS"] and kernel["ProblemType"]["DataTypeB"].isAnyFloat8():
@@ -1023,12 +1059,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 else:
                   break
 
+        while packMXSAItems:
+          for j in range(self.states.numReadsIterCoalescedMXSA):
+            for n in range(instPerPackMXSA):
+              if packMXSAItems:
+                packINtemsMXSA[j].append(packMXSAItems.pop(0))
+              else:
+                break
+
         if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
           while packMItems:
             # for j in range(self.states.numReadsIterCoalescedMetadata):
             for n in range(ceil(instPerPackM)):
               if packMItems:
                 packINtemsM[0].append(packMItems.pop(0))
+              else:
+                break
+
+        while packMXSBItems:
+          for j in range(self.states.numReadsIterCoalescedMXSB):
+            for n in range(instPerPackMXSB):
+              if packMXSBItems:
+                packINtemsMXSB[j].append(packMXSBItems.pop(0))
               else:
                 break
 
@@ -1047,16 +1099,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 else:
                   break
 
-        for j in range(max(self.states.numReadsIterCoalescedA,self.states.numReadsIterCoalescedB,self.states.numReadsIterCoalescedMetadata)):
+        for j in range(maxReadIterCoal):
           if schedulePackConsiderMetadata:
-            packItemsA += packINtemsA.pop(0)
-            packItemsB += packINtemsB.pop(0)
-            packItemsM += packINtemsM.pop(0)
+            packItemsA    += packINtemsA.pop(0)
+            packItemsB    += packINtemsB.pop(0)
+            packItemsMXSA += packINtemsMXSA.pop(0)
+            packItemsMXSB += packINtemsMXSB.pop(0)
+            packItemsM    += packINtemsM.pop(0)
           else:
             packItems += packINtems.pop(0)
 
         if schedulePackConsiderMetadata:
-          packItems = packItemsA + packItemsB + packItemsM
+          packItems = packItemsA + packItemsB + packItemsMXSA + packItemsMXSB + packItemsM
       # remove s_nop for packing
       # we will add s_nop if needed
       if macIterItems:
@@ -1484,11 +1538,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 if packItems:
                   iterCode.add(packItems.pop(0))
                   curPackIdx += 1
+              for j in range(instPerPackMXSA):
+                if packItems:
+                  iterCode.add(packItems.pop(0))
+                  curPackIdx += 1
               if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
                 for j in range(ceil(instPerPackM)):
                   if packItems:
                     iterCode.add(packItems.pop(0))
                     curPackIdx += 1
+              for j in range(instPerPackMXSB):
+                if packItems:
+                  iterCode.add(packItems.pop(0))
+                  curPackIdx += 1
               for j in range(instPerPackB):
                 if packItems:
                   iterCode.add(packItems.pop(0))
@@ -1503,8 +1565,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   iterCode.add(SNop(waitState=1, comment="VALU packing writes to be consumed by matrix instruction"))
                   curPackIdx += 1
                   break
-          else:
-
+          else: # schedulePackConsiderMetadata
             desiredPack = instPerPackA + instPerPackB + ceil(instPerPackM)
             # Step 1
             # put the required pack into mfma iter
