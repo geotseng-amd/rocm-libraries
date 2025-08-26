@@ -1888,12 +1888,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["ScheduleIterAlg"] == 3 and self.states.numItersPLR and\
           (iteration < maxNumberReadIter or numPrefetchIter):
           if ((iteration < numReadsIterA and not dataAtIterA < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
-            localReads -= self.states.numReadsPerIterA
+            localReads -= self.states.numReadsPerIterA * readFactorA
           if kernel["ProblemType"]["MXBlockA"]:
             if ((iteration < numReadsIterMXSA and not dataAtIterMXSA < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
               localReads -= self.states.numReadsPerIterMXSA
           if ((iteration < numReadsIterB and not dataAtIterB < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
-            localReads -= self.states.numReadsPerIterB
+            localReads -= self.states.numReadsPerIterB * readFactorB
           if kernel["ProblemType"]["MXBlockB"]:
             if ((iteration < numReadsIterMXSB and not dataAtIterMXSB < maxDataAtIter) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
               localReads -= self.states.numReadsPerIterMXSB
@@ -1954,7 +1954,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             else:
               lgkmcnt = localWrites  # this only survives if writes are at the end
 
-      waitCode.comment += " old=%u, new=%u newLW=%u newLR=%u" % (waitCode.lgkmcnt, lgkmcnt,localWrites,localReads)
+      waitCode.comment += " old=%u, new=%u newLW=%u newLR=%u" % (waitCode.lgkmcnt, lgkmcnt, localWrites, localReads)
       if iteration == 0:
         waitCode.comment += " for iteration == 0"
       waitCode.lgkmcnt = lgkmcnt
