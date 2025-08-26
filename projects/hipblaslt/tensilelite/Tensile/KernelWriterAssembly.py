@@ -9272,7 +9272,18 @@ class KernelWriterAssembly(KernelWriter):
               src1=sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
               comment="reset to Red"))
         else:
-          numLwa = self.states.a.numVgprLocalWriteAddr if tP["isA"] else self.states.b.numVgprLocalWriteAddr
+          numLwa = 0
+          if tP["isA"]:
+            numLwa = self.states.a.numVgprLocalWriteAddr
+          elif tP["isMXSA"]:
+            numLwa = self.states.mxsa.numVgprLocalWriteAddr
+          elif tP["isMXSB"]:
+            numLwa = self.states.mxsb.numVgprLocalWriteAddr
+          elif tP["isB"]:
+            numLwa = self.states.b.numVgprLocalWriteAddr
+          else:
+            raise Exception(f"unsupport tc %s{tc}")
+
           if kernel["LdsAlignPow2"]:
             for i in range(numLwa):
                 module.add(VAndB32(
