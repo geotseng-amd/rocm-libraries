@@ -51,6 +51,7 @@
 #include <Tensile/DataTypes_BFloat6.hpp>
 #include <Tensile/DataTypes_Float4.hpp>
 #include <Tensile/DataTypes_E8.hpp>
+#include <Tensile/DataTypes_E5M3.hpp>
 
 namespace rocisa
 {
@@ -329,6 +330,12 @@ namespace TensileLite
     {
     };
 
+    template <>
+    struct TypeInfo<E5M3>
+        : public BaseTypeInfo<E5M3, rocisa::DataType::E5M3, 1, false, false>
+    {
+    };
+
     // Variant for constants
     using ConstantVariant = std::variant<float,
                                          double,
@@ -357,7 +364,8 @@ namespace TensileLite
                                          Float4x2
 #endif // #ifdef TENSILE_USE_FP4
                                          ,
-                                         E8>;
+                                         E8,
+                                         E5M3>;
 
     // Convert variants to type T
     template <typename T>

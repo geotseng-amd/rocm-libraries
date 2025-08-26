@@ -379,6 +379,9 @@ namespace rocisa
 
             switch(mxScaleAType)
             {
+            case InstType::INST_E5M3:
+                inputPermuteStr += " matrix_a_scale_fmt:1";
+                break;
             case InstType::INST_F8:
                 inputPermuteStr += " matrix_a_scale_fmt:2";
                 break;
@@ -388,6 +391,9 @@ namespace rocisa
 
             switch(mxScaleBType)
             {
+            case InstType::INST_E5M3:
+                inputPermuteStr += " matrix_b_scale_fmt:1";
+                break;
             case InstType::INST_F8:
                 inputPermuteStr += " matrix_b_scale_fmt:2";
                 break;
