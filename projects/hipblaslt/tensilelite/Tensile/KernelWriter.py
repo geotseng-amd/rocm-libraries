@@ -3515,6 +3515,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.states.actualSummationLoops==1:
         module.addComment1("remove stagger offsets for tail loop")
         module.add(self.removeStagger(kernel, tensorParametersA))
+        if "MX" in tensorParametersA:
+          module.add(self.removeStagger(kernel, tensorParametersA["MX"]))
+        if "MX" in tensorParametersB:
+          module.add(self.removeStagger(kernel, tensorParametersB["MX"]))
         module.add(self.removeStagger(kernel, tensorParametersB))
 
       tensorParameters1st = tensorParametersA
