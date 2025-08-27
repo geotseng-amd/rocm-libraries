@@ -3439,11 +3439,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         module.add(self.removeStagger(kernel, tensorParametersB["MX"]))
       module.add(self.removeStagger(kernel, tensorParametersB))
 
-    if self.states.lastValuMXSAB:
-      self.vgprPool.add(0 , self.states.lastValuMXSAB, "ValuMXSAB")
-      module.addComment1("Tail: add ValuA/B vgpr buffer [%u...%u) to pool" % \
-          (0, self.states.lastValuMXSAB))
-
     module.add(VNop(self.states.miVALUInstrDataHazard, "Add v_nop before releasing ValuA/B"))
     self.vgprPool.add(self.states.a.startVgprValu , \
         self.states.lastValuAB - self.states.a.startVgprValu, "ValuAB")
@@ -3831,6 +3826,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
             self.states.b.numVgprLocalReadAddr, "LocalReadAddrB vgpr") # Add as available
           module.addComment1("Tail: add LocalReadAddrB Vgpr [%u...%u) to pool" % \
                             (self.states.b.startVgprLocalReadAddr, self.states.b.startVgprLocalReadAddr + self.states.b.numVgprLocalReadAddr))
+
+    if self.states.lastValuMXSAB:
+      self.vgprPool.add(0 , self.states.lastValuMXSAB, "ValuMXSAB")
+      module.addComment1("Tail: add ValuA/B vgpr buffer [%u...%u) to pool" % \
+          (0, self.states.lastValuMXSAB))
 
     if self.do["executeToLoopEnd"]:
       module.add(self.functionEnd(kernel, addLabel=False))
