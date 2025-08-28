@@ -23,11 +23,11 @@
 ################################################################################
 
 
-from rocisa import countInstruction, countGlobalRead, countSMemLoad, findInstCount
+from rocisa import rocIsa, countInstruction, countGlobalRead, countSMemLoad, findInstCount
 from rocisa.asmpass import getActFuncModuleName, getActFuncBranchModuleName
 from rocisa.code import KernelBody, Label, Macro, Module, RegSet, SrdUpperValue, \
                         StructuredModule, TextBlock, ValueEndif, ValueIf, ValueSet, SignatureBase
-from rocisa.container import DSModifiers, SDWAModifiers, VOP3PModifiers, \
+from rocisa.container import DSModifiers, SDWAModifiers, VOP3PModifiers, True16Modifiers, \
                       MUBUFModifiers, SMEMModifiers, EXEC, VCC, RegisterContainer, \
                       DPPModifiers, vgpr, sgpr, accvgpr, mgpr, ContinuousRegister, \
                       HWRegContainer
@@ -38,7 +38,7 @@ from rocisa.functions import vectorStaticDivide, vectorStaticRemainder, vectorUI
                         scalarStaticRemainder, scalarUInt32DivideAndRemainder, sMagicDiv, vectorStaticMultiply, \
                         vectorStaticMultiplyAdd, scalarStaticMultiply64, BranchIfZero, BranchIfNotZero, DSInit, \
                         ArgumentLoader
-from rocisa.enum import InstType, SelectBit
+from rocisa.enum import InstType, SelectBit, HighBitSel
 from rocisa.macro import MacroVMagicDiv, PseudoRandomGenerator
 from . import CUSTOM_KERNEL_PATH
 from rocisa.instruction import BranchInstruction, BufferLoadB128, BufferLoadB32, \
@@ -9249,7 +9249,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Do It A/B
   ##############################################################################
   def localWriteDo(self, kernel, tP, swapAB=0):
-
+    ti = rocIsa.getInstance()
     tc = tP["tensorChar"]
     imod = Module()
     isBpeInputLarger = True if tP["bpeGR"] > tP["bpe"] else False
@@ -9407,9 +9407,12 @@ class KernelWriterAssembly(KernelWriter):
                   else:
                     Hcvt2BMap[f16Tobf16Idx] = 0
                   f16Tobf16Idx += Hcvt2BMap[f16Tobf16Idx]
-                  sdwa = SDWAModifiers(src0_sel=SelectBit.WORD_1)
                   localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=vgpr(destVgprPrefix + "+%u"%(f16Tobf16Idx))))
-                  localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp+1), src=vgpr(destVgprPrefix + "+%u"%(f16Tobf16Idx)),sdwa=sdwa))
+                  if ti.getArchCaps()["NoSDWA"]:
+                    localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp+1), src=vgpr(destVgprPrefix + "+%u"%(f16Tobf16Idx)), true16=[-1, -1, 1]))
+                  else:
+                    sdwa = SDWAModifiers(src0_sel=SelectBit.WORD_1)
+                    localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp+1), src=vgpr(destVgprPrefix + "+%u"%(f16Tobf16Idx)),sdwa=sdwa))
                   localWriteCVTCode.add(VPackF16toB32(dst=vgpr(destVgprPrefix + "+%u"%(f16Tobf16Idx)), src0=vgpr(vgprTmp), src1=vgpr(vgprTmp+1),
                                     vop3=VOP3PModifiers(op_sel=[1,1,0])))
                 self.vgprPool.checkIn(vgprTmp)
@@ -9450,15 +9453,22 @@ class KernelWriterAssembly(KernelWriter):
               if (kernel["ProblemType"]["DataType%s"%tc].isSingle() and kernel["ProblemType"]["DataType"].isHalf()):
                 newBlockWidth = (tP["bpeGR"] / tP["bpe"]) * blockWidth
                 if newBlockWidth == 1:
-                  dst_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
                   new_src = deepcopy(paramList[0])
                   if isHigh16Bits:
                     new_src.regName.addOffset(1)
-                  localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=new_src, sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
-                else:
+                  if ti.getArchCaps()["NoSDWA"]:
+                    dst_sel = 1 if isHigh16Bits else 0
+                    localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=new_src, true16=[dst_sel], comment="convert C to fp16"))
+                  else:
+                    dst_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
+                    localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=new_src, sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
                   for vi in range(0, int(newBlockWidth)):
-                    dst_sel = SelectBit.WORD_1 if vi%2==1 else SelectBit.WORD_0
-                    localWriteCVTCode.add(VCvtF32toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
+                    if ti.getArchCaps()["NoSDWA"]:
+                      dst_sel = (vi % 2)
+                      localWriteCVTCode.add(VCvtF32toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), true16=[dst_sel], comment="convert C to fp16"))
+                    else:
+                      dst_sel = SelectBit.WORD_1 if vi%2==1 else SelectBit.WORD_0
+                      localWriteCVTCode.add(VCvtF32toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
               elif (kernel["ProblemType"]["DataType%s"%tc].isHalf() and kernel["ProblemType"]["DataType"].is8bitFloat()):
                 #HH_F8/B8/F8B8/B8F8_
                 toF8 = False
@@ -9480,7 +9490,10 @@ class KernelWriterAssembly(KernelWriter):
                     vgprTmp = self.vgprPool.checkOutAligned(1, 2)
                   src_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
                   sel = 1 if isHigh16Bits else 0
-                  localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=paramList[0], sdwa=SDWAModifiers(src0_sel=src_sel), comment="convert to F32"))
+                  if ti.getArchCaps()["NoSDWA"]:
+                    localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=paramList[0], true16=[-1, -1, sel], comment="convert to F32"))
+                  else:
+                    localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=paramList[0], sdwa=SDWAModifiers(src0_sel=src_sel), comment="convert to F32"))
 
                   # ScaleA/B
                   if kernel["ProblemType"]["UseScaleAB"] == "Scalar" and kernel["ProblemType"]["DataType%s"%tc].numRegisters() > kernel["ProblemType"]["DataType"].numRegisters():
@@ -9526,6 +9539,9 @@ class KernelWriterAssembly(KernelWriter):
                       else:
                         localWriteCVTCode.add(VCvtScalePkF16toBF8(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi//2)), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), scale=0x3f800000,\
                                                               vop3=VOP3PModifiers(op_sel=[0,0,sel]), comment="convert F16 to BF8"))
+                    elif ti.getArchCaps()["NoSDWA"]:
+                      localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), true16=[-1, -1, 0], comment="convert to F32"))
+                      localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp2), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), true16=[-1, -1, 1], comment="convert to F32"))
                     else:
                       localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), sdwa=SDWAModifiers(src0_sel=SelectBit.WORD_0), comment="convert to F32"))
                       localWriteCVTCode.add(VCvtF16toF32(dst=vgpr(vgprTmp2), src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi)), sdwa=SDWAModifiers(src0_sel=SelectBit.WORD_1), comment="convert to F32"))
@@ -9582,14 +9598,20 @@ class KernelWriterAssembly(KernelWriter):
                   if tP["glvw"] == 1:
                     vgprTmp = self.vgprPool.checkOut(1)
                     new_src.regName.addOffset(tP["shiftGR"])
-                    src_sel = SelectBit.BYTE_2 if isHigh16Bits else SelectBit.BYTE_0
-                    dst_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
-                    if self.states.asmCaps["Hascvtf16_fp8"]:
+                    if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                       sel = [0,1,1,0] if isHigh16Bits else [0,0,0,0]
                       localWriteCVTCode.add(VCvtScaleFP8toF16(dst=paramList[0], src=new_src, scale=0x3f800000, vop3=VOP3PModifiers(op_sel=sel), comment="A convert fp8 to f16"))
                     else:
-                      localWriteCVTCode.add(VCvtFP8toF32(dst=vgpr(vgprTmp), src=new_src , sdwa=SDWAModifiers(src0_sel=src_sel), comment="convert C to fp32"))
-                      localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=vgpr(vgprTmp), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
+                      if ti.getArchCaps()["NoSDWA"]:
+                        src_sel = 1 if isHigh16Bits else 0
+                        dst_sel = 1 if isHigh16Bits else 0
+                        localWriteCVTCode.add(VCvtFP8toF32(dst=vgpr(vgprTmp), src=new_src , vop3=VOP3PModifiers(byte_sel=[src_sel]), comment="convert C to fp32"))
+                        localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=vgpr(vgprTmp), true16=[dst_sel], comment="convert C to fp16"))
+                      else:
+                        src_sel = SelectBit.BYTE_2 if isHigh16Bits else SelectBit.BYTE_0
+                        dst_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
+                        localWriteCVTCode.add(VCvtFP8toF32(dst=vgpr(vgprTmp), src=new_src , sdwa=SDWAModifiers(src0_sel=src_sel), comment="convert C to fp32"))
+                        localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=vgpr(vgprTmp), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
                     self.vgprPool.checkIn(vgprTmp)
                   else:
                     if isCvtHighBits and isHigh16Bits:
@@ -9603,7 +9625,7 @@ class KernelWriterAssembly(KernelWriter):
                       new_src.regName.addOffset(tP["shiftGR"])
                       src_sel = SelectBit.BYTE_0
                     dst_sel = SelectBit.WORD_1 if isHigh16Bits else SelectBit.WORD_0
-                    if self.states.asmCaps["Hascvtf16_fp8"]:
+                    if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                         if isHigh16Bits:
                           if isCvtHighBits:
                             sel = [1,1,1,0]
@@ -9616,7 +9638,7 @@ class KernelWriterAssembly(KernelWriter):
                             sel = [0,0,0,0]
 
                     if new_src == paramList[0]:
-                      if self.states.asmCaps["Hascvtf16_fp8"]:
+                      if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                         localWriteCVTCode.add(VCvtScaleFP8toF16(dst=paramList[0], src=new_src , scale=0x3f800000, vop3=VOP3PModifiers(op_sel=sel), comment="B convert fp8 to f16"))
                       else:
                         if src_sel == SelectBit.BYTE_0 or src_sel == SelectBit.BYTE_2:
@@ -9629,7 +9651,7 @@ class KernelWriterAssembly(KernelWriter):
                           localWriteCVTCode.add(VCvtF32toF16(dst=paramList[0], src=vgpr(regTmpVgprBlock + 1), sdwa=SDWAModifiers(dst_sel=dst_sel), comment="convert C to fp16"))
                     else:
                       vgprTmp = self.vgprPool.checkOut(1)
-                      if self.states.asmCaps["Hascvtf16_fp8"]:
+                      if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                         localWriteCVTCode.add(VCvtScaleFP8toF16(dst=paramList[0], src=new_src, scale=0x3f800000, vop3=VOP3PModifiers(op_sel=sel), comment="C convert fp8 to f16"))
                       else:
                         localWriteCVTCode.add(VCvtFP8toF32(dst=vgpr(vgprTmp), src=new_src , sdwa=SDWAModifiers(src0_sel=src_sel), comment="convert C to fp32"))
@@ -9639,7 +9661,7 @@ class KernelWriterAssembly(KernelWriter):
                   vgprTmp = self.vgprPool.checkOutAligned(2, 2)
                   src_sel = SelectBit.WORD_1 if isCvtHighBits else SelectBit.WORD_0
                   modNum = max(1, int(newBlockWidth / blockWidth))
-                  if self.states.asmCaps["Hascvtf16_fp8"]:
+                  if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                     sel  = [1,0,0,0] if isCvtHighBits else [0,0,0,0]
                     localWriteCVTCode.add(VCvtScalePkFP8toF16(dst=vgpr(destVgprPrefix + "+%u"%(g2lIdx)), src=vgpr(destVgprPrefix + "+%u"%(g2lIdx)), scale=0x3f800000,\
                                                           vop3=VOP3PModifiers(op_sel=sel), comment="D convert fp8 to f16"))
@@ -9657,7 +9679,7 @@ class KernelWriterAssembly(KernelWriter):
                   vgprTmp = self.vgprPool.checkOutAligned(2, 2)
                   if (not isHigh16Bits) and (newBlockWidth <= blockWidth):
                     for vi in range(0, int(newBlockWidth)):
-                      if self.states.asmCaps["Hascvtf16_fp8"]:
+                      if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                         localWriteCVTCode.add(VCvtScaleFP8toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi * 2)),     src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx+tP["shiftGR"], vi)), scale=0x3f800000,\
                                                             vop3=VOP3PModifiers(op_sel=[0,0,0,0]), comment="E convert fp8 to f16"))
                         localWriteCVTCode.add(VCvtScaleFP8toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx, vi * 2)),     src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdx+tP["shiftGR"], vi)), scale=0x3f800000,\
@@ -9680,7 +9702,7 @@ class KernelWriterAssembly(KernelWriter):
                       vi = idxMod // 2
                       selectBit = SelectBit.WORD_0 if idxMod % 2 == 0 else SelectBit.WORD_1
                       interOffset = 0 if idxMod % 2 == 0 else 1
-                      if self.states.asmCaps["Hascvtf16_fp8"]:
+                      if self.states.asmCaps["Hascvtf16_fp8_sf32"]:
                         sel = 1 if idxMod % 2 == 0 else 1
                         localWriteCVTCode.add(VCvtScalePkFP8toF16(dst=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdxTmp, vi * 2 + interOffset)),\
                                                               src=vgpr(destVgprPrefix + "+%u+%u"%(g2lIdxTmp+tP["shiftGR"], vi)), scale=0x3f800000,\
@@ -13445,7 +13467,7 @@ class KernelWriterAssembly(KernelWriter):
                             addr0, addr1, offset=globalOffset, comment="global store bias"))
         tmpVgprN += tmpVgprNStep
         globalOffset += biasBpe
-    module.add(SMovB64(dst=EXEC(), src=-1, comment="Reset exec mask"))
+    module.add(SMovBX(dst=EXEC(), src=-1, comment="Reset exec mask"))
     return module
 
   ########################################

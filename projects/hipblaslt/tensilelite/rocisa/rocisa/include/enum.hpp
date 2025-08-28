@@ -238,6 +238,13 @@ namespace rocisa
         UNUSED_PRESERVE = 3
     };
 
+    enum class HighBitSel : int
+    {
+        NONE = -1,
+        LOW  =  0,
+        HIGH =  1
+    };
+
     enum class CvtType : int
     {
         CVT_F16_to_F32          = 1,
@@ -263,13 +270,23 @@ namespace rocisa
         CVT_SCALEF32_SR_FP8_F16 = 21,
         CVT_SCALEF32_SR_BF8_F16 = 22,
         CVT_BF16_to_F32         = 23,
-        CVT_PK_F32_to_BF16      = 24
+        CVT_PK_F32_to_BF16      = 24,
+        CVT_FP8_to_F16          = 25,
+        CVT_PK_FP8_to_F16       = 26,
+        CVT_PK_F32_to_F16       = 27
     };
 
     enum class RoundType : int
     {
         ROUND_UP              = 0,
         ROUND_TO_NEAREST_EVEN = 1
+    };
+
+    enum class ArgType : int
+    {
+        DST  = 0,
+        DST1 = 1,
+        SRC0 = 2
     };
 
     inline std::string toString(SelectBit bit)
