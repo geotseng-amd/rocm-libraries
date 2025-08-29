@@ -31,7 +31,7 @@ from rocisa.container import DSModifiers, SDWAModifiers, VOP3PModifiers, True16M
                       MUBUFModifiers, SMEMModifiers, EXEC, VCC, RegisterContainer, \
                       DPPModifiers, vgpr, sgpr, accvgpr, mgpr, ContinuousRegister, \
                       HWRegContainer
-from rocisa.instruction import SGetPositivePCOffset, SLongBranchPositive, SCLongBranchScc0, SCLongBranchScc1, \
+from rocisa.instruction import SGetPositivePCOffset, SLongBranchPositive, SCLongBranchScc0, SCLongBranchScc1, SCLongBranchVccnz, \
                         SMulInt64to32, VCvtBF16toFP32
 from rocisa.functions import vectorStaticDivide, vectorStaticRemainder, vectorUInt32CeilDivideAndRemainder, \
                         vectorStaticDivideAndRemainder, scalarStaticDivideAndRemainder, scalarStaticCeilDivide, \
@@ -894,13 +894,13 @@ class KernelWriterAssembly(KernelWriter):
               if not kernel["UnrollMajorLDSMetadata"]:
                 ri = 0
             ri = 0
-            if not kernel["UnrollMajorLDSMetadata"]:
+            if not kernel["UnrollMajorLDSMetadata"] and not kernel["enableLDSTrMetadata"]:
               miWaveTile = kernel["MIWaveTileB"] if kernel["ProblemType"]["Sparse"] == 2 else kernel["MIWaveTileA"]
-              moduleVgprMacro.add(RegSet("v", "vgprValuMetadata_X0_I0_D_PACK", "vgprBase", self.states.m.startVgprValuPack - self.states.startVgpr))
+              moduleVgprMacro.add(RegSet("v", "vgprValuMetadata_X0_I0_D0_PACK", "vgprBase", self.states.m.startVgprValuPack - self.states.startVgpr))
               for data in range(0,kernel["MIInputPerThreadMetadata"]):
                 for bi in range(0,PLR): # buffer indices
                   for iui in range(0, kernel["InnerUnroll"]):
-                    moduleVgprMacroValuMPack.add(RegSet("v", "vgprValuMetadata_X%u_I%u_D%u"%(bi,iui,data), "vgprValuMetadata_X0_I0_D_PACK", ri))
+                    moduleVgprMacroValuMPack.add(RegSet("v", "vgprValuMetadata_X%u_I%u_D%u"%(bi,iui,data), "vgprValuMetadata_X0_I0_D0_PACK", ri))
                     ri += ceil(kernel["VectorWidthMetadata"] * tPM["bpe"] / self.states.bpr) * miWaveTile // kernel["VectorWidthMetadata"]
           else:
             moduleVgprMacro.add(RegSet("v", "vgprValuMetadata_X0_I0_BASE", "vgprBase", self.states.m.startVgprValu - self.states.startVgpr))
@@ -908,6 +908,15 @@ class KernelWriterAssembly(KernelWriter):
               for iui in range(0, kernel["InnerUnroll"]):
                 moduleVgprMacroValuM.add(RegSet("v", "vgprValuMetadata_X%u_I%u"%(bi,iui), "vgprValuMetadata_X0_I0_BASE", ri))
                 ri += self.states.m.numVgprValuPerBlock
+            if not kernel["UnrollMajorLDSMetadata"] and not kernel["enableLDSTrMetadata"]:
+              moduleVgprMacro.add(RegSet("v", "vgprValuMetadata_X0_I0_D0_PACK", "vgprBase", self.states.m.startVgprValuPack - self.states.startVgpr))
+              for data in range(1,kernel["MIInputPerThreadMetadata"]):
+                for bi in range(0,PLR): # buffer indices
+                  if bi % self.states.numVgprBufferPackMetadata == 0:
+                    ri = (data-1) * kernel["InnerUnroll"] * self.states.numVgprBufferPackMetadata * kernel["MIWaveTileMetadata"]
+                  for iui in range(0, kernel["InnerUnroll"]):
+                    moduleVgprMacroValuMPack.add(RegSet("v", "vgprValuMetadata_X%u_I%u_D%u"%(bi,iui,data),"vgprValuMetadata_X0_I0_D0_PACK", ri))
+                    ri += self.states.m.numVgprValuPerBlock
 
     if not kernel["LocalWriteUseSgprA"] and self.states.a.numVgprLocalWriteAddr > 0:
       module.add(RegSet("v", "vgprLocalWriteAddrA", \
@@ -4722,13 +4731,13 @@ class KernelWriterAssembly(KernelWriter):
           miWaveTile = kernel["MIWaveTileB"] if kernel["ProblemType"]["Sparse"] == 2 else kernel["MIWaveTileA"]
           numVgprValuPackMetadata = roundUp(kernel["VectorWidthMetadata"] * tensorParametersM["bpe"] / self.states.bpr) * miWaveTile // kernel["VectorWidthMetadata"] * kernel["InnerUnroll"] * self.states.numVgprBuffer * kernel["MIInputPerThreadMetadata"]
         else:
-          numVgprValuPackMetadata = self.states.m.numVgprValuPerBlock * kernel["InnerUnroll"] * self.states.numVgprBufferPackMetadata * (int(4/tensorParametersM["bpe"]) - 1)
+          numVgprValuPackMetadata = (kernel["MIInputPerThreadMetadata"]-1) * kernel["MIWaveTileMetadata"] * kernel["InnerUnroll"] * self.states.numVgprBufferPackMetadata
       # No PGR metadata for tail loop.
       vgprBaseM = self.vgprPool.checkOutAligned(max(numValuM + numVgprValuPackMetadata, self.states.m.numVgprG2LAllocated), 2)
       imodM.add(RegSet("v", "vgprValuMetadata_X0_I0_BASE", vgprBaseM))
       imodM.add(self.moduleVgprMacroValuM)
       if numVgprValuPackMetadata > 0:
-        imodM.add(RegSet("v", "vgprValuMetadata_X0_I0_D_PACK", vgprBaseM + numValuM))
+        imodM.add(RegSet("v", "vgprValuMetadata_X0_I0_D0_PACK", vgprBaseM + numValuM))
         imodM.add(self.moduleVgprMacroValuMPack)
 
     imodMisc        = Module("tailLoopAllocValuMiscVgpr")
@@ -5959,6 +5968,8 @@ class KernelWriterAssembly(KernelWriter):
         vsize = self.states.a.startVgprLocalReadAddr + self.states.a.numVgprLocalReadAddr - vbegin
       if self.states.b.startVgprLocalReadAddr > self.states.lastVgprForReads:
         vsize = self.states.b.startVgprLocalReadAddr + self.states.b.numVgprLocalReadAddr - vbegin
+      if self.states.m.startVgprLocalReadAddr > self.states.lastVgprForReads:
+        vsize = self.states.m.startVgprLocalReadAddr + self.states.m.numVgprLocalReadAddr - vbegin        
       self.vgprPool.add(vbegin, vsize, "endSummation")
       module.addComment0("endSummation: add vgpr [%u...%u) to pool" % \
                         (vbegin, vbegin+vsize))
@@ -14068,6 +14079,24 @@ class KernelWriterAssembly(KernelWriter):
           self.labels.getUniqueNamePrefix("Positive"),
           posNeg, comment)
 
+  ##############################################################################
+  # longBranchVccnz - 32 bit offset
+  # Conditional branch to label when VCC != 0
+  # Use when erroring out "invalid operand due to label > SIMM16"
+  ##############################################################################
+  def longBranchVccnz(self, label: Label, posNeg: int=0, tmpSgprInfo: Optional[ContinuousRegister]=None, comment=""):
+    if tmpSgprInfo:
+      return SCLongBranchVccnz(label, tmpSgprInfo, \
+        self.labels.getUniqueNamePrefix("NoBranch"), \
+        self.labels.getUniqueNamePrefix("Positive"),
+        posNeg, comment)
+    else:
+      with self.allocTmpSgpr(3) as tmpSgprInfo:
+        return SCLongBranchVccnz(label, tmpSgprInfo, \
+          self.labels.getUniqueNamePrefix("NoBranch"), \
+          self.labels.getUniqueNamePrefix("Positive"),
+          posNeg, comment)
+      
   def sMagicDivWrapper(self, dest, dividend, magicNumber, magicShift):
     tmpVgpr = self.vgprPool.checkOut(2)
     tmpVgprRes = ContinuousRegister(tmpVgpr, 2)
