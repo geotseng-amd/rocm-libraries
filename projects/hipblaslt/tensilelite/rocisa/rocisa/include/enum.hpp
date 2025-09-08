@@ -215,7 +215,8 @@ namespace rocisa
         INST_F6         = 40,
         INST_BF6        = 41,
         INST_F4         = 42,
-        INST_NOTYPE     = 43
+        INST_B96        = 43,
+        INST_NOTYPE     = 44
     };
 
     enum class SelectBit : int
