@@ -64,6 +64,7 @@ add_executable( sample_hipblaslt_gemm_swish_bias 26_gemm_swish_bias/sample_hipbl
 add_executable( sample_hipblaslt_gemm_clamp_bias 27_gemm_clamp_bias/sample_hipblaslt_gemm_clamp_bias.cpp)
 add_executable( sample_hipblaslt_gemm_with_FP4 28_gemm_with_FP4/sample_hipblaslt_gemm.cpp)
 add_executable( sample_hipblaslt_gemm_with_FP6 29_gemm_with_FP6/sample_hipblaslt_gemm.cpp)
+add_executable( sample_hipblaslt_gemm_with_MXFP4 30_gemm_with_MXFP4/sample_hipblaslt_gemm.cpp)
 
 set(samples sample_hipblaslt_gemm
             sample_hipblaslt_gemm_ext
@@ -106,7 +107,8 @@ set(samples sample_hipblaslt_gemm
             sample_hipblaslt_gemm_swish_bias
             sample_hipblaslt_gemm_clamp_bias
             sample_hipblaslt_gemm_with_FP4
-            sample_hipblaslt_gemm_with_FP6)
+            sample_hipblaslt_gemm_with_FP6
+            sample_hipblaslt_gemm_with_MXFP4)
 
 set( sample_list_all ${samples})
 
