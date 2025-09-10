@@ -203,6 +203,8 @@ rocblaslt_status rocblaslt_matmul_impl(const rocblaslt_handle       handle,
                                         scaleAlphaVec,
                                         matmul_descr->scaleAType,
                                         matmul_descr->scaleBType,
+                                        matmul_descr->scaleAMode,
+                                        matmul_descr->scaleBMode,
                                         matmul_descr->scaleABlockRowSize,
                                         matmul_descr->scaleABlockColSize,
                                         matmul_descr->scaleBBlockRowSize,
@@ -365,6 +367,8 @@ rocblaslt_status rocblaslt_gemm_create_cpp_impl(const rocblaslt_handle          
                                         scaleAlphaVec,
                                         matmul_descr->scaleAType,
                                         matmul_descr->scaleBType,
+                                        matmul_descr->scaleAMode,
+                                        matmul_descr->scaleBMode,
                                         matmul_descr->scaleABlockRowSize,
                                         matmul_descr->scaleABlockColSize,
                                         matmul_descr->scaleBBlockRowSize,
@@ -662,6 +666,8 @@ rocblaslt_status
                                                        scaleAlpha_vec[i],
                                                        matmul_descr[i]->scaleAType,
                                                        matmul_descr[i]->scaleBType,
+                                                       matmul_descr[i]->scaleAMode,
+                                                       matmul_descr[i]->scaleBMode,
                                                        matmul_descr[i]->scaleABlockRowSize,
                                                        matmul_descr[i]->scaleABlockColSize,
                                                        matmul_descr[i]->scaleBBlockRowSize,
@@ -994,6 +1000,8 @@ rocblaslt_status rocblaslt_gemm_create_cpp_impl_2(const rocblaslt_handle handle,
         scaleAlphaVec,
         static_cast<RocblasltContractionProblem::ScalingFormat>(rocEpilogue.scaling_a_type),
         static_cast<RocblasltContractionProblem::ScalingFormat>(rocEpilogue.scaling_b_type),
+        ROCBLASLT_MATMUL_MATRIX_SCALE_END,
+        ROCBLASLT_MATMUL_MATRIX_SCALE_END,
         // TODO: these scale block sizes might need to be set
         0, /* scaleABlockRowSize */
         0, /* scaleABlockColSize */
@@ -1319,6 +1327,8 @@ rocblaslt_status rocblaslt_groupedgemm_create_cpp_impl_2(const rocblaslt_handle 
                                             rocEpilogue[iIdx].scaling_a_type),
                                         static_cast<RocblasltContractionProblem::ScalingFormat>(
                                             rocEpilogue[iIdx].scaling_b_type),
+                                        ROCBLASLT_MATMUL_MATRIX_SCALE_END,
+                                        ROCBLASLT_MATMUL_MATRIX_SCALE_END,
                                         // TODO: these scale block sizes might need to be set
                                         0, /* scaleABlockRowSize */
                                         0, /* scaleABlockColSize */

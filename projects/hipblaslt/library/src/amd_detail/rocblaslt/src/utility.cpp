@@ -236,6 +236,10 @@ const char* rocblaslt_matmul_desc_attributes_to_string(rocblaslt_matmul_desc_att
         return "MATMUL_DESC_EPILOGUE_ACT_ARG0_EXT";
     case ROCBLASLT_MATMUL_DESC_EPILOGUE_ACT_ARG1_EXT:
         return "MATMUL_DESC_EPILOGUE_ACT_ARG1_EXT";
+    case ROCBLASLT_MATMUL_DESC_A_SCALE_MODE:
+        return "ROCBLASLT_MATMUL_DESC_A_SCALE_MODE";
+    case ROCBLASLT_MATMUL_DESC_B_SCALE_MODE:
+        return "ROCBLASLT_MATMUL_DESC_B_SCALE_MODE";
     default:
         return "Invalid";
     }

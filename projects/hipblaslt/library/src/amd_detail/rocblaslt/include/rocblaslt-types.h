@@ -335,6 +335,13 @@ typedef enum
     ROCBLASLT_ORDER_ROW = 1,
 } rocblasLtOrder_t;
 
+typedef enum {
+    ROCBLASLT_MATMUL_MATRIX_SCALE_SCALAR_32F = 0,  /** Scaling factors are single-precision scalars applied to the whole tensors (this mode is the default for fp8). */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3 = 1, /** Not supported yet. Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit HIP_R_8F_E4M3 value for each 16-element block in the innermost dimension of the corresponding data tensor. */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0 = 2, /** Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit R_8F_UE8M0 value for each 32-element block in the innermost dimension of the corresponding data tensor. */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_END
+} rocblaslt_matmul_matrix_scale;
+
 /*! \ingroup types_module
  *  \brief Specify the additional attributes of a matrix multiplication
  * descriptor
@@ -529,6 +536,8 @@ struct RocblasltContractionProblem
     const void*   scaleAlphaVec;
     ScalingFormat scaleAType;
     ScalingFormat scaleBType;
+    rocblaslt_matmul_matrix_scale scaleAMode;
+    rocblaslt_matmul_matrix_scale scaleBMode;
 
     size_t             scaleABlockRowSize;
     size_t             scaleABlockColSize;
@@ -596,6 +605,8 @@ struct RocblasltContractionProblem
                                 const void*            scaleAlphaVec,
                                 ScalingFormat          scaleAType,
                                 ScalingFormat          scaleBType,
+                                rocblaslt_matmul_matrix_scale scaleAMode,
+                                rocblaslt_matmul_matrix_scale scaleBMode,
                                 size_t                 scaleABlockRowSize,
                                 size_t                 scaleABlockColSize,
                                 size_t                 scaleBBlockRowSize,

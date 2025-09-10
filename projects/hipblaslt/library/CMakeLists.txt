@@ -47,6 +47,7 @@ set(hipblaslt_headers_public
   include/hipblaslt/hipblaslt_bfloat6.h
   include/hipblaslt/hipblaslt_float4.h
   include/hipblaslt/hipblaslt-ext-op.h
+  include/hipblaslt/hipblaslt_e8.h
   ${PROJECT_BINARY_DIR}/include/hipblaslt/hipblaslt-version.h
 )
 

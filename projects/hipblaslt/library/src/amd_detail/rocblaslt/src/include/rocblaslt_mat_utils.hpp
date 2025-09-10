@@ -377,17 +377,19 @@ inline rocblaslt_status
     }
     if(scaleAType == RocblasltContractionProblem::ScalingFormat::Block)
     {
-        if(scaleABlockRowSize != 32 || scaleABlockColSize != 1)
+        if((scaleABlockRowSize != 32 || scaleABlockColSize != 1)
+          && (scaleABlockRowSize != 16 || scaleABlockColSize != 1))
         {
-            log_error(__func__, "ScaleA block row and column sizes currently only support 32x1");
+            log_error(__func__, "ScaleA block row and column sizes currently only support 32x1 or 1x16");
             status = rocblaslt_status_invalid_value;
         }
     }
     if(scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
     {
-        if(scaleBBlockRowSize != 1 || scaleBBlockColSize != 32)
+        if((scaleBBlockRowSize != 1 || scaleBBlockColSize != 32)
+          && (scaleBBlockRowSize != 1 || scaleBBlockColSize != 16))
         {
-            log_error(__func__, "ScaleB block row and column sizes currently only support 1x32");
+            log_error(__func__, "ScaleB block row and column sizes currently only support 1x32 or 1x16");
             status = rocblaslt_status_invalid_value;
         }
     }

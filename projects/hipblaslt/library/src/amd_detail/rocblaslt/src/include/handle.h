@@ -176,6 +176,9 @@ struct _rocblaslt_matmul_desc
     RocblasltContractionProblem::ScalingFormat scaleBType
         = RocblasltContractionProblem::ScalingFormat::None;
 
+    rocblaslt_matmul_matrix_scale scaleAMode = ROCBLASLT_MATMUL_MATRIX_SCALE_END;
+    rocblaslt_matmul_matrix_scale scaleBMode = ROCBLASLT_MATMUL_MATRIX_SCALE_END;
+
     uint32_t scaleABlockRowSize = 0;
     uint32_t scaleABlockColSize = 0;
     uint32_t scaleBBlockRowSize = 0;

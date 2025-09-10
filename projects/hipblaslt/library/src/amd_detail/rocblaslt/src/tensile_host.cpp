@@ -122,6 +122,8 @@ RocblasltContractionProblem::RocblasltContractionProblem(hipblasOperation_t     
                                                          const void*            scaleAlphaVec,
                                                          ScalingFormat          scaleAType,
                                                          ScalingFormat          scaleBType,
+                                                         rocblaslt_matmul_matrix_scale scaleAMode,
+                                                         rocblaslt_matmul_matrix_scale scaleBMode,
                                                          size_t                 scaleABlockRowSize,
                                                          size_t                 scaleABlockColSize,
                                                          size_t                 scaleBBlockRowSize,
@@ -188,6 +190,8 @@ RocblasltContractionProblem::RocblasltContractionProblem(hipblasOperation_t     
     , scaleAlphaVec(scaleAlphaVec)
     , scaleAType(scaleAType)
     , scaleBType(scaleBType)
+    , scaleAMode(scaleAMode)
+    , scaleBMode(scaleBMode)
     , scaleABlockRowSize(scaleABlockRowSize)
     , scaleABlockColSize(scaleABlockColSize)
     , scaleBBlockRowSize(scaleBBlockRowSize)
@@ -1446,12 +1450,25 @@ namespace
         tensileProblem.setParams().setBiasEnum(
             tensileUseBias(prob.epilogue) ? biasType : rocisa::DataType::None);
 
-        tensileProblem.setUseScaleAB(
-            (prob.scaleA == nullptr && prob.scaleB == nullptr)
-                ? ""
-                : ((prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Vector)
-                       ? "Vector"
-                       : "Scalar"));
+        if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block)
+            if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0)
+                tensileProblem.setMXScaleA(rocisa::DataType::E8, 32);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3)
+                tensileProblem.setMXScaleA(rocisa::DataType::Float8, 16);
+        if (prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0)
+                tensileProblem.setMXScaleB(rocisa::DataType::E8, 32);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3)
+                tensileProblem.setMXScaleB(rocisa::DataType::Float8, 16);
+        if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block
+            || prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            tensileProblem.setUseScaleAB("");
+        else if (prob.scaleA == nullptr && prob.scaleB == nullptr)
+            tensileProblem.setUseScaleAB("");
+        else if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Vector)
+            tensileProblem.setUseScaleAB("Vector");
+        else
+            tensileProblem.setUseScaleAB("Scalar");
         tensileProblem.setUseScaleCD(prob.scaleC != nullptr || prob.scaleD != nullptr);
         tensileProblem.setUseScaleAlphaVec(prob.scaleAlphaVec != nullptr);
         tensileProblem.setScaleAlphaVec(compute_type, d.sizes()[0]);
@@ -1619,12 +1636,25 @@ namespace
         tensileProblem.setParams().setBiasEnum(
             tensileUseBias(prob.epilogue) ? biasType : rocisa::DataType::None);
 
-        tensileProblem.setUseScaleAB(
-            (prob.scaleA == nullptr && prob.scaleB == nullptr)
-                ? ""
-                : ((prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Vector)
-                       ? "Vector"
-                       : "Scalar"));
+        if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block)
+            if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0)
+                tensileProblem.setMXScaleA(rocisa::DataType::E8, 32);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3)
+                tensileProblem.setMXScaleA(rocisa::DataType::Float8, 16);
+        if (prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0)
+                tensileProblem.setMXScaleB(rocisa::DataType::E8, 32);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3)
+                tensileProblem.setMXScaleB(rocisa::DataType::Float8, 16);
+        if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block
+            || prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            tensileProblem.setUseScaleAB("");
+        else if (prob.scaleA == nullptr && prob.scaleB == nullptr)
+            tensileProblem.setUseScaleAB("");
+        else if (prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Vector)
+            tensileProblem.setUseScaleAB("Vector");
+        else
+            tensileProblem.setUseScaleAB("Scalar");
         tensileProblem.setUseScaleCD(prob.scaleC != nullptr || prob.scaleD != nullptr);
         tensileProblem.setUseScaleAlphaVec(prob.scaleAlphaVec != nullptr);
         tensileProblem.setScaleAlphaVec(compute_type, d.sizes()[0]);
@@ -1701,12 +1731,27 @@ namespace
             inputs.bias = reinterpret_cast<const void*>(prob.bias);
         else
             inputs.bias = nullptr;
-        inputs.scaleA        = reinterpret_cast<const void*>(prob.scaleA);
-        inputs.scaleB        = reinterpret_cast<const void*>(prob.scaleB);
+        if(prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block)
+            inputs.scaleA        = nullptr;
+        else
+            inputs.scaleA        = reinterpret_cast<const void*>(prob.scaleA);
+        if(prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            inputs.scaleB        = nullptr;
+        else
+            inputs.scaleB        = reinterpret_cast<const void*>(prob.scaleB);
         inputs.scaleC        = reinterpret_cast<const void*>(prob.scaleC);
         inputs.scaleD        = reinterpret_cast<const void*>(prob.scaleD);
         inputs.scaleAlphaVec = reinterpret_cast<const void*>(prob.scaleAlphaVec);
         inputs.amaxD         = reinterpret_cast<void*>(prob.amaxD);
+
+        if(prob.scaleAType == RocblasltContractionProblem::ScalingFormat::Block)
+            inputs.mxsa        = reinterpret_cast<const void*>(prob.scaleA);
+        else
+            inputs.mxsa        = nullptr;
+        if(prob.scaleBType == RocblasltContractionProblem::ScalingFormat::Block)
+            inputs.mxsb        = reinterpret_cast<const void*>(prob.scaleB);
+        else
+            inputs.mxsb        = nullptr;
 
         static const std::map<rocisa::DataType, TensileLite::ConstantVariant> argument_vals = {
             {rocisa::DataType::Float, 0.0f},
