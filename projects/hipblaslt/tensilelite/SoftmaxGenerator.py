@@ -20,7 +20,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from rocisa.code import Module, TextBlock, Label
+from rocisa.code import Module, TextBlock, Label, SrdUpperValue
 from rocisa.container import EXEC, VCC, MUBUFModifiers, vgpr, sgpr
 from rocisa.enum import RegisterType
 from rocisa.functions import vectorStaticDivideAndRemainder, vectorStaticMultiply, \
@@ -43,6 +43,7 @@ from Tensile.Common.Architectures import detectGlobalCurrentISA, isaToGfx, gfxTo
 from Tensile.Common.DataType import DataType
 from Tensile.Common.GlobalParameters import restoreDefaultGlobalParameters, assignGlobalParameters
 from Tensile.Common.RegisterPool import allocTmpGpr
+from Tensile.Common.Types import IsaVersion
 from Tensile.Toolchain.Validators import ToolchainDefaults, validateToolchain
 
 def record_num_calls(f):
@@ -75,13 +76,15 @@ def asm_func(func_name: str, module: Module):
         module.add(TextBlock(f'.size {func_name}, {end_label_name} - {func_name}\n'))
 
 @contextmanager
-def auto_exec_scope(sgpr_pool: RegisterPool, module: Module):
+def auto_exec_scope(sgpr_pool: RegisterPool, module: Module, wavefront_size: int):
+    SMovBX = ri.SMovB64 if wavefront_size == 64 else ri.SMovB32
+    laneSGPRCount = 2 if wavefront_size == 64 else 1
     try:
-        tmp_exec_reg_idx = sgpr_pool.checkOutAligned(2, 2)
-        module.add(ri.SMovB64(sgpr(tmp_exec_reg_idx, 2), EXEC()))
+        tmp_exec_reg_idx = sgpr_pool.checkOutAligned(laneSGPRCount, laneSGPRCount)
+        module.add(SMovBX(sgpr(tmp_exec_reg_idx, laneSGPRCount), EXEC()))
         yield
     finally:
-        module.add(ri.SMovB64(EXEC(), sgpr(tmp_exec_reg_idx, 2)))
+        module.add(SMovBX(EXEC(), sgpr(tmp_exec_reg_idx, laneSGPRCount)))
         sgpr_pool.checkIn(tmp_exec_reg_idx)
 
 class SoftmaxKernelGenerator:
@@ -93,11 +96,18 @@ class SoftmaxKernelGenerator:
                  num_cols: int,
                  num_rows: int,
                  num_workitems: int,
-                 arch: str):
+                 wavefront_size: int,
+                 arch: str,
+                 isa: IsaVersion):
         self.io_type = io_type
         self.num_cols = num_cols
         self.num_rows = num_rows
         self.num_workitems = num_workitems
+        self.wavefront_size = wavefront_size
+        self.laneSGPRCount = 2 if wavefront_size == 64 else 1
+        self.SMovBX = ri.SMovB64 if wavefront_size == 64 else ri.SMovB32
+        self.SAndBX = ri.SAndB64 if wavefront_size == 64 else ri.SAndB32
+        self.srdUpperValue = SrdUpperValue(isa)
         self.sgpr_pool = RegisterPool(18, RegisterType.Sgpr, True)
         self.vgpr_pool = RegisterPool(10, RegisterType.Vgpr, True)
         self.sgpr_pool.addRange(3, 17) #TODO: estimate this
@@ -107,6 +117,7 @@ class SoftmaxKernelGenerator:
         self.numerically_stable = True
         self.debug_label = True
         self.arch = arch
+        self.isa = isa
         self.op = 'Softmax'
 
     def _validate(self):
@@ -210,13 +221,26 @@ class SoftmaxKernelGenerator:
     @property
     def srd_const(self) -> str:
         if self.io_type.isSingle():
-            return hex(0x20000)
+            return hex(self.srdUpperValue.getValue())
 
         raise NotImplementedError
 
     @property
     def bpe(self) -> int:
         return int(self.io_type.numBytes())
+    
+    def shiftSrd(self, srdIdx):
+        module = Module()
+        if self.isa[0] == 12 and self.isa[1] == 5:
+            stmp = self.sgpr_pool.checkOutAligned(1, 1)
+            module.add(ri.SAndB32(sgpr(stmp), sgpr(srdIdx+2), 0x7F))
+            module.add(ri.SLShiftLeftB32(sgpr(stmp), 25, sgpr(stmp)))
+            module.add(ri.SAndB32(sgpr(srdIdx+1), sgpr(srdIdx+1), 0x1FFFFFF))
+            module.add(ri.SOrB32(sgpr(srdIdx+1), sgpr(srdIdx+1), sgpr(stmp)))
+            module.add(ri.SLShiftRightB32(sgpr(srdIdx+2), 7, sgpr(srdIdx+2)))
+            self.sgpr_pool.checkIn(stmp)
+        return module
+        
 
     def load_kernel_args(self):
         kernel_args_addr = 0
@@ -230,15 +254,19 @@ class SoftmaxKernelGenerator:
         module.add(ri.SLoadB64(sgpr(input_srd_idx, 2), sgpr(kernel_args_addr, kernel_args_addr_size), 0))
         module.add(ri.SLoadB32(sgpr(m_reg_idx), sgpr(kernel_args_addr, kernel_args_addr_size), 16))
         module.add(ri.SLoadB32(sgpr(n_reg_idx), sgpr(kernel_args_addr, kernel_args_addr_size), 20))
-        module.add(ri.SWaitCnt(lgkmcnt=0))
+        module.add(ri.SWaitCnt(lgkmcnt=0, kmcnt=0))
         module.add(ri.SLoadB64(sgpr(output_srd_idx, 2), sgpr(kernel_args_addr, kernel_args_addr_size), 8))
         module.add(ri.SMulI32(sgpr(num_elem_reg_idx), sgpr(m_reg_idx), sgpr(n_reg_idx)))
         module.add(ri.SMulI32(sgpr(num_elem_reg_idx), sgpr(num_elem_reg_idx), hex(self.bpe)))
         module.add(ri.SMovB32(sgpr(input_srd_idx + 2), sgpr(num_elem_reg_idx)))
-        module.add(ri.SWaitCnt(lgkmcnt=0))
+        module.add(ri.SWaitCnt(lgkmcnt=0, kmcnt=0))
         module.add(ri.SMovB32(sgpr(output_srd_idx + 2), sgpr(num_elem_reg_idx)))
         module.add(ri.SMovB32(sgpr(input_srd_idx + 3), self.srd_const))
         module.add(ri.SMovB32(sgpr(output_srd_idx + 3), self.srd_const))
+        module.add(self.shiftSrd(input_srd_idx))
+        module.add(self.shiftSrd(output_srd_idx))
+        if _global_ti.getArchCaps()["WorkGroupIdFromTTM"]:
+            module.add(ri.SMovB32(dst=sgpr(self.wg_id_reg_idx), src="ttmp9"))
         self.sgpr_pool.checkIn(num_elem_reg_idx)
         return module, input_srd_idx, output_srd_idx, m_reg_idx, n_reg_idx
 
@@ -438,16 +466,16 @@ class SoftmaxKernelGenerator:
             reduction_col_reg_idx = self.vgpr_pool.checkOut(1)
 
             for i in range(num_iter):
-                with auto_exec_scope(self.sgpr_pool, module):
+                with auto_exec_scope(self.sgpr_pool, module, self.wavefront_size):
                     s = self.num_cols >> (i + 1)
                     assert s > 0
                     cmp_byte_rel_offset = s * self.bpe
                     module.add(ri.VAddU32(vgpr(reduction_col_reg_idx), hex(s), vgpr(col_reg_idx)))
-                    module.add(ri.VCmpLeU32(sgpr(cmp_res_reg_idx, 2), vgpr(col_reg_idx), sgpr(n_reg_idx)))
+                    module.add(ri.VCmpLeU32(sgpr(cmp_res_reg_idx, self.laneSGPRCount), vgpr(col_reg_idx), sgpr(n_reg_idx)))
                     module.add(ri.VCmpGtU32(VCC(), hex(s), vgpr(col_reg_idx)))
-                    module.add(ri.SAndB64(sgpr(cmp_res_reg_idx, 2), sgpr(cmp_res_reg_idx, 2), VCC()))
+                    module.add(self.SAndBX(sgpr(cmp_res_reg_idx, self.laneSGPRCount), sgpr(cmp_res_reg_idx, self.laneSGPRCount), VCC()))
                     module.add(ri.VCmpLtU32(VCC(), vgpr(reduction_col_reg_idx), sgpr(n_reg_idx)))
-                    module.add(ri.SAndB64(EXEC(), sgpr(cmp_res_reg_idx, 2), VCC()))
+                    module.add(self.SAndBX(EXEC(), sgpr(cmp_res_reg_idx, self.laneSGPRCount), VCC()))
                     module.add(ri.VAddU32(vgpr(r_reg_idx), hex(cmp_byte_rel_offset), vgpr(l_reg_idx)))
                     module.add(self.lds_sum(l_reg_idx, r_reg_idx))
 
@@ -479,16 +507,16 @@ class SoftmaxKernelGenerator:
             reduction_col_reg_idx = self.vgpr_pool.checkOut(1)
 
             for i in range(num_iter):
-                with auto_exec_scope(self.sgpr_pool, module):
+                with auto_exec_scope(self.sgpr_pool, module, self.wavefront_size):
                     s = self.num_cols >> (i + 1)
                     assert s > 0
                     cmp_byte_rel_offset = s * self.bpe
                     module.add(ri.VAddU32(vgpr(reduction_col_reg_idx), hex(s), vgpr(col_reg_idx)))
-                    module.add(ri.VCmpLeU32(sgpr(cmp_res_reg_idx, 2), vgpr(col_reg_idx), sgpr(n_reg_idx)))
+                    module.add(ri.VCmpLeU32(sgpr(cmp_res_reg_idx, self.laneSGPRCount), vgpr(col_reg_idx), sgpr(n_reg_idx)))
                     module.add(ri.VCmpGtU32(VCC(), hex(s), vgpr(col_reg_idx)))
-                    module.add(ri.SAndB64(sgpr(cmp_res_reg_idx, 2), sgpr(cmp_res_reg_idx, 2), VCC()))
+                    module.add(self.SAndBX(sgpr(cmp_res_reg_idx, self.laneSGPRCount), sgpr(cmp_res_reg_idx, self.laneSGPRCount), VCC()))
                     module.add(ri.VCmpLtU32(VCC(), vgpr(reduction_col_reg_idx), sgpr(n_reg_idx)))
-                    module.add(ri.SAndB64(EXEC(), sgpr(cmp_res_reg_idx, 2), VCC()))
+                    module.add(self.SAndBX(EXEC(), sgpr(cmp_res_reg_idx, self.laneSGPRCount), VCC()))
                     module.add(ri.VAddU32(vgpr(r_reg_idx), hex(cmp_byte_rel_offset), vgpr(l_reg_idx)))
                     module.add(self.lds_max(l_reg_idx, r_reg_idx))
 
@@ -543,7 +571,7 @@ class SoftmaxKernelGenerator:
         if self.debug_label:
             module.add(Label('global_write_data', 'global write begins'))
 
-        with auto_exec_scope(self.sgpr_pool, module):
+        with auto_exec_scope(self.sgpr_pool, module, self.wavefront_size):
             col_reg_idx = self.vgpr_pool.checkOut(1)
             module.add(vectorStaticRemainder(-1, col_reg_idx, self.t_id_reg_idx, self.num_cols, None, None))
             module.add(ri.VCmpXLtU32(VCC(), vgpr(col_reg_idx), sgpr(n_reg_idx)))
@@ -555,7 +583,7 @@ class SoftmaxKernelGenerator:
             module.add(GlobalWriteInstType(vgpr(data_reg_idx), vgpr(local_byte_offset_reg_idx), sgpr(srd_reg_idx, self.srd_num_reg), sgpr(wg_byte_offset_reg_idx), MUBUFModifiers(offen=True)))
 
             if sync:
-                module.add(ri.SWaitCnt(vmcnt=0))
+                module.add(ri.SWaitCnt(vscnt=0))
 
             self.vgpr_pool.checkIn(local_byte_offset_reg_idx)
         return module
@@ -616,6 +644,8 @@ def kernel_rodata(name: str, gfx_arch: Tuple[int, int, int]):
         header += f'.amdhsa_accum_offset 8\n'
     header += f'.amdhsa_next_free_vgpr .amdgcn.next_free_vgpr\n'
     header += f'.amdhsa_next_free_sgpr .amdgcn.next_free_sgpr\n'
+    if _global_ti.getArchCaps()["HasWave32"]:
+        header += f'.amdhsa_wavefront_size32 1\n'
     header += f'.end_amdhsa_kernel\n'
     return header
 
@@ -708,12 +738,13 @@ if __name__ == '__main__':
         toolchain_path = validateToolchain(ToolchainDefaults.CXX_COMPILER)
 
     _global_ti.init(isa, toolchain_path, False)
-    _global_ti.setKernel(isa, 64)
-    softmax = SoftmaxKernelGenerator(DataType('S'), n, m, 256, arch)
+    waveFrontSize = 32 if isa[0] in [11, 12] else 64
+    _global_ti.setKernel(isa, waveFrontSize)
+    softmax = SoftmaxKernelGenerator(DataType('S'), n, m, 256, waveFrontSize, arch, isa)
     kernel_body = softmax.softmax_kernel_body()
     args = softmax.kernel_args()
     func_name = softmax.func_name
-    meta = KernelMeta(func_name, softmax.vgpr_pool.size(), softmax.sgpr_pool.size(), 0, softmax.lds_usage_byte, 64, 256, 8, args)
+    meta = KernelMeta(func_name, softmax.vgpr_pool.size(), softmax.sgpr_pool.size(), 0, softmax.lds_usage_byte, waveFrontSize, 256, 8, args)
     meta.update_args_offsets()
     k_str = '\n'.join([kernel_header(func_name, arch),
                        str(kernel_body),
