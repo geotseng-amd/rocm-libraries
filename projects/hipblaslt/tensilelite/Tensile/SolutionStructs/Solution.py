@@ -1467,9 +1467,13 @@ class Solution(collections.abc.Mapping):
     if isa[:2] == (12, 5) and state["KernelLanguage"] == "Assembly" \
       and (state["ProblemType"]["DataType"].isFloat4() or state["ProblemType"]["DataType"].is6bitFloat()):
       if state["ProblemType"]["DataType"].is6bitFloat():
-        state["AssertFree0ElementMultiple"] = max(state["AssertFree0ElementMultiple"], 16)
-        state["AssertFree1ElementMultiple"] = max(state["AssertFree1ElementMultiple"], 16)
-        state["AssertSummationElementMultiple"] = state["DepthU"]
+        state["AssertFree0ElementMultiple"] = 1
+        state["AssertFree1ElementMultiple"] = 1
+        state["AssertSummationElementMultiple"] = 16
+        if not state["ProblemType"]["TransposeA"]:
+          state["AssertFree0ElementMultiple"] = 16
+        if state["ProblemType"]["TransposeB"]:
+          state["AssertFree1ElementMultiple"] = 16
 
       if state["ProblemType"]["DataType"].isFloat4():
         if not state["enableLDSTrA"] and not state["UnrollMajorLDSA"]:
@@ -2408,9 +2412,6 @@ class Solution(collections.abc.Mapping):
     # Unless kernel is Stream-K; Stream-K always requires TailLoop to handle work division.
     state["NoTailLoop"] = False
     if state["AssertSummationElementMultiple"] % state["DepthU"] == 0 and state["StreamK"] == 0:
-      state["NoTailLoop"] = True
-    # TODO: enable TailLoop
-    if state["ProblemType"]["DataType"].numBytes() == 0.75:
       state["NoTailLoop"] = True
 
     # Determine if we can load directly-to-Vgpr
