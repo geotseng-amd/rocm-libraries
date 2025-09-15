@@ -2303,7 +2303,8 @@ namespace TensileLite
         }
         else
         {
-            mt1 = int(problem.d().sizes()[1] / 2) * 2;
+            // MT1 should be the power of 2 to match setting in tensileLite
+            mt1 = static_cast<int>(pow(2, ceil(log2(mt1))));
             if(mt1 == 0)
                 mt1 = 1;
         }
