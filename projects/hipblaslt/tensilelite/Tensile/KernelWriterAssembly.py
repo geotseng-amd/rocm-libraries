@@ -7000,7 +7000,7 @@ class KernelWriterAssembly(KernelWriter):
             for a in range(0, kernel["MIWaveTileA"]):
               for ti in range(0, numTileInInstA):
                 for iui in range(0, innerUnroll):
-                  aStr = self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnrollA, m, u, iui, a)
+                  aStr = self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a)
                   shiftK.add(_shiftLrElements(aStr, vgprPerInUnrollA, a))
 
           numSet0GroupA = vgprPerInUnrollA // vgprPerSet0Group
@@ -7047,7 +7047,7 @@ class KernelWriterAssembly(KernelWriter):
                   for ti in range(0, numTileInInstA):
                     for iui in range(0, innerUnroll):
                       bk = se + group * vgprPerSet0Group + ti * vgprPerInUnrollA
-                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnrollA, m, u, iui, a, bk=bk), 1)
+                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=bk), 1)
                       shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=0, src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment="set 0 if K_idx >= sizeL"))
 
           if kernel["ProblemType"]["Sparse"] == 2 and numMIInUnroll//8 >= 1:
@@ -7069,7 +7069,7 @@ class KernelWriterAssembly(KernelWriter):
             for b in range(0, kernel["MIWaveTileB"]):
               for ti in range(0, numTileInInstB):
                 for iui in range(0, innerUnroll):
-                  bStr = self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnrollB, m, u, iui, b)
+                  bStr = self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b)
                   shiftK.add(_shiftLrElements(bStr, vgprPerInUnrollB, b))
 
           numSet0GroupB = vgprPerInUnrollB//vgprPerSet0Group
@@ -7113,7 +7113,7 @@ class KernelWriterAssembly(KernelWriter):
                 for ti in range(0, numTileInInstB):
                   for iui in range(0, innerUnroll):
                     bk = se + group * vgprPerSet0Group + ti * vgprPerInUnrollB
-                    bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnrollB, m, u, iui, b, bk=bk), 1)
+                    bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b, bk=bk), 1)
                     shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=0, src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment="set 0 if K_idx >= sizeL"))
 
           # replace elements with 0 for same thread, this conducting shift and mask between numElementsPerRead
@@ -7142,15 +7142,15 @@ class KernelWriterAssembly(KernelWriter):
             for a in range(0, kernel["MIWaveTileA"]):
               for ti in range(0, numTileInInstA):
                 for iui in range(0, innerUnroll):
-                  aStr_base = self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=ti*vgprPerInUnrollA)
-                  aStr = vgpr(aStr_base, min(2, vgprPerInUnroll))
+                  aStr_base = self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=ti*vgprPerInputA)
+                  aStr = vgpr(aStr_base, min(2, vgprPerInUnrollA))
                   if is_wmma_v2:
-                    if vgprPerInUnroll == 4:
+                    if vgprPerInUnrollA == 4:
                       a_64_shift = Label(label=self.labels.getNameInc("a_64_Shift"), comment="")
                       a_32_shift = Label(label=self.labels.getNameInc("a_32_Shift"), comment="")
                       a_common = Label(label=self.labels.getNameInc("a_shift_end"), comment="")
-                      aStr1 = vgpr(aStr_base + "+1", min(2, vgprPerInUnroll))
-                      aStr2 = vgpr(aStr_base + "+2", min(2, vgprPerInUnroll))
+                      aStr1 = vgpr(aStr_base + "+1", min(2, vgprPerInUnrollA))
+                      aStr2 = vgpr(aStr_base + "+2", min(2, vgprPerInUnrollA))
 
                       shiftK.add(SMovB32(dst=sgpr(tmpSgprX3), src=sgpr(tmpSgprX1), comment="sgpr used for minic shift 128 bit"))
                       shiftK.add(SCmpGeI32(src0=sgpr(tmpSgprX3), src1=64, comment="check offset > 63"))
@@ -7182,36 +7182,36 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+2, 2), shiftHex=sgpr(tmpSgprX3), src=aStr, comment=""))
                       shiftK.add(SAddU32(dst=sgpr(tmpSgprX3), src0=sgpr(tmpSgprX3), src1=64, comment=""))
                       shiftK.add(a_common)
-                    elif vgprPerInUnroll == 2:
-                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
-                    elif vgprPerInUnroll > 1:
-                      assert False, f"Invalid vgprPerInUnroll: {vgprPerInUnroll}"
+                    elif vgprPerInUnrollA == 2:
+                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollA), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
+                    elif vgprPerInUnrollA > 1:
+                      assert False, f"Invalid vgprPerInUnrollA: {vgprPerInUnrollA}"
 
-                    for ir in range(0, vgprPerInUnroll):
+                    for ir in range(0, vgprPerInUnrollA):
                       bk = ir + ti * vgprPerInUnrollA
-                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=bk), 1)
+                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=bk), 1)
                       shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+ir), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))
                   else: # mfma or wmma_v3
 
                     if kernel["ProblemType"]["Sparse"]:
-                      if vgprPerInUnroll == 2:
-                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=ti*vgprPerInUnrollA), 2)
-                        shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
+                      if vgprPerInUnrollA == 2:
+                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=ti*vgprPerInUnroll), 2)
+                        shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollA), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
                     elif vgprPerInUnroll <= 2:
-                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
-                    if vgprPerInUnroll >= 4 and vgprPerInUnroll % 2 == 0:
-                      for ivgpr in range(0, vgprPerInUnroll, 2):
+                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollA), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
+                    if vgprPerInUnrollA >= 4 and vgprPerInUnrollA % 2 == 0:
+                      for ivgpr in range(0, vgprPerInUnrollA, 2):
                         bk = ivgpr + ti * vgprPerInUnrollA
-                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=bk), 2)
+                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=bk), 2)
                         shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
-                    for ir in range(0, vgprPerInUnroll):
+                    for ir in range(0, vgprPerInUnrollA):
                       bk = ir + ti * vgprPerInUnrollA
-                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=bk), 1)
+                      aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputA, m, u, iui, a, bk=bk), 1)
                       elemIdx = ir * self.states.bpr // tPA["bpe"]
                       if is_wmma_v3: # may check 64 bit
                         vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPA["bpe"] * 8)
                         mivw = vgprLayout[-1]
-                        if vgprPerInUnroll >= 2:
+                        if vgprPerInUnrollA >= 2:
                           kIncA = int((64 // (numRegistersIn * 32)))
                           if elemIdx == 0:
                             shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncA, "add part of K: 64 bit groupd"))
@@ -7222,7 +7222,7 @@ class KernelWriterAssembly(KernelWriter):
                           shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
                           shiftK.add(VCndMaskB32(dst=aStr, src0=aStr, src1=vgpr(abReg+ir), src2=sgpr(tmpSgprX2), comment=""))
                       else:
-                        if vgprPerInUnroll >= 4:
+                        if vgprPerInUnrollA >= 4:
                           if ir == 0:
                             shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInUnroll//numSet0GroupA, "add part of K"))
                           elif ir % 2 == 0:
@@ -7239,15 +7239,15 @@ class KernelWriterAssembly(KernelWriter):
             for b in range(0, kernel["MIWaveTileB"]):
               for ti in range(0, numTileInInstB):
                 for iui in range(0, innerUnroll):
-                  bStr_base = self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, b, bk=ti*vgprPerInUnrollB)
-                  bStr = vgpr(bStr_base, min(2, vgprPerInUnroll))
+                  bStr_base = self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b, bk=ti*vgprPerInUnrollB)
+                  bStr = vgpr(bStr_base, min(2, vgprPerInUnrollB))
                   if is_wmma_v2:
-                    if vgprPerInUnroll == 4:
+                    if vgprPerInUnrollB == 4:
                       b_64_shift = Label(label=self.labels.getNameInc("b_64_Shift"), comment="")
                       b_32_shift = Label(label=self.labels.getNameInc("b_32_Shift"), comment="")
                       b_common = Label(label=self.labels.getNameInc("b_shift_end"), comment="")
-                      bStr1 = vgpr(bStr_base + "+1", min(2, vgprPerInUnroll))
-                      bStr2 = vgpr(bStr_base + "+2", min(2, vgprPerInUnroll))
+                      bStr1 = vgpr(bStr_base + "+1", min(2, vgprPerInUnrollB))
+                      bStr2 = vgpr(bStr_base + "+2", min(2, vgprPerInUnrollB))
                       shiftK.add(SMovB32(dst=sgpr(tmpSgprX3), src=sgpr(tmpSgprX1), comment="sgpr used for minic shift 128 bit"))
                       shiftK.add(SCmpGeI32(src0=sgpr(tmpSgprX3), src1=64, comment="check offset >63"))
                       shiftK.add(SCBranchSCC1(labelName=b_64_shift.getLabelName(), comment="jump when positive"))
@@ -7277,32 +7277,32 @@ class KernelWriterAssembly(KernelWriter):
                       shiftK.add(VShiftLeft(dst=vgpr(abReg+2,2), shiftHex=sgpr(tmpSgprX3), src=bStr, comment=""))
                       shiftK.add(b_common)
                     else:
-                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
-                    for ir in range(0, vgprPerInUnroll):
+                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollB), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
+                    for ir in range(0, vgprPerInUnrollB):
                       bk = ir + ti * vgprPerInUnrollB
-                      bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, b, bk=bk), 1)
+                      bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b, bk=bk), 1)
                       shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+ir), src2=sgpr(tmpSgprX2, self.states.laneSGPRCount), comment=""))
                   else: # mfma or wmma_v3
 
                     if kernel["ProblemType"]["Sparse"]:
-                      if vgprPerInUnroll == 2:
-                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, a, bk=ti*vgprPerInUnrollB), 2)
-                        shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
-                    elif vgprPerInUnroll <= 2:
-                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnroll), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
-                    if vgprPerInUnroll >= 4 and vgprPerInUnroll % 2 == 0:
-                      for ivgpr in range(0, vgprPerInUnroll, 2):
+                      if vgprPerInUnrollB == 2:
+                        aStr = vgpr(self.generateSrcStrForMFMA(kernel, tPA, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, a, bk=ti*vgprPerInUnrollB), 2)
+                        shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollB), shiftHex=sgpr(tmpSgprX1), src=aStr, comment=""))
+                    elif vgprPerInUnrollB <= 2:
+                      shiftK.add(VShiftLeft(dst=vgpr(abReg, vgprPerInUnrollB), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
+                    if vgprPerInUnrollB >= 4 and vgprPerInUnrollB % 2 == 0:
+                      for ivgpr in range(0, vgprPerInUnrollB, 2):
                         bk = ivgpr + ti * vgprPerInUnrollB
-                        bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, b, bk=bk), 2)
+                        bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b, bk=bk), 2)
                         shiftK.add(VShiftLeft(dst=vgpr(abReg+ivgpr, 2), shiftHex=sgpr(tmpSgprX1), src=bStr, comment=""))
-                    for ir in range(0, vgprPerInUnroll):
+                    for ir in range(0, vgprPerInUnrollB):
                       bk = ir + ti * vgprPerInUnrollB
-                      bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInUnroll, m, u, iui, b, bk=bk), 1)
+                      bStr = vgpr(self.generateSrcStrForMFMA(kernel, tPB, innerUnroll, vregSetIdx, vgprPerInputB, m, u, iui, b, bk=bk), 1)
                       elemIdx = ir * self.states.bpr // tPB["bpe"]
                       if is_wmma_v3:
                         vgprLayout = wmmaV3InputVgprLayout(kernel["MatrixInstruction"], tPB["bpe"] * 8)
                         mivw = vgprLayout[-1]
-                        if vgprPerInUnroll >= 2:
+                        if vgprPerInUnrollB >= 2:
                           kIncB = int((64 // (numRegistersIn * 32)))
                           if elemIdx == 0:
                             shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), kIncB, "add part of K: 64 bits group"))
@@ -7313,12 +7313,12 @@ class KernelWriterAssembly(KernelWriter):
                           shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
                           shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+ir), src2=sgpr(tmpSgprX2), comment=""))
                       else:
-                        if vgprPerInUnroll >= 4:
+                        if vgprPerInUnrollB >= 4:
                           if ir == 0:
                             shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg_first), numMIInUnroll//numSet0GroupB, "add part of K"))
                           elif ir % 2 == 0:
                             kIncB = numMIInUnroll//numSet0GroupB
-                            if ir == 4: # when vgprPerInUnroll == 8
+                            if ir == 4: # when vgprPerInUnrollB == 8
                               kIncB = 56 if kernel["MatrixInstK"] == 128 else 24
                             shiftK.add(VAddU32(vgpr(kReg), vgpr(kReg), kIncB, "add part of K"))
                           # replace 0 for differnet thread
@@ -7327,7 +7327,7 @@ class KernelWriterAssembly(KernelWriter):
                           shiftK.add(VCmpGEI32(dst=sgpr(tmpSgprX2,2), src0=vgpr(kReg), src1=sgpr(loopCntSgpr), comment="check K index >= Size L"))
                         shiftK.add(VCndMaskB32(dst=bStr, src0=bStr, src1=vgpr(abReg+ir), src2=sgpr(tmpSgprX2,2), comment=""))
 
-            if vgprPerInUnroll == 4 and is_wmma_v2:
+            if vgprPerInUnrollB == 4 and is_wmma_v2:
               if tmpVgpr2 is not None: self.vgprPool.checkIn(tmpVgpr2)
 
           if kernel["ProblemType"]["MXBlockA"] or kernel["ProblemType"]["MXBlockB"]:
