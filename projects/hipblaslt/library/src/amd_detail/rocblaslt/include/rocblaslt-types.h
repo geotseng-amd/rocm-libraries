@@ -337,8 +337,10 @@ typedef enum
 
 typedef enum {
     ROCBLASLT_MATMUL_MATRIX_SCALE_SCALAR_32F = 0,  /** Scaling factors are single-precision scalars applied to the whole tensors (this mode is the default for fp8). */
-    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3 = 1, /** Not supported yet. Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit HIP_R_8F_E4M3 value for each 16-element block in the innermost dimension of the corresponding data tensor. */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3 = 1, /** Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit HIP_R_8F_E4M3 value for each 16-element block in the innermost dimension of the corresponding data tensor. */
     ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0 = 2, /** Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit R_8F_UE8M0 value for each 32-element block in the innermost dimension of the corresponding data tensor. */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE8M0_EXT = 100, /** Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit R_8F_UE8M0 value for each 16-element block in the innermost dimension of the corresponding data tensor. */
+    ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT = 101, /** Scaling factors are tensors that contain a dedicated scaling factor stored as an 8-bit HIP_R_8F_E4M3 value for each 32-element block in the innermost dimension of the corresponding data tensor. */
     ROCBLASLT_MATMUL_MATRIX_SCALE_END
 } rocblaslt_matmul_matrix_scale;
 
