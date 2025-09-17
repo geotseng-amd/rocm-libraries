@@ -8373,7 +8373,9 @@ class KernelWriterAssembly(KernelWriter):
                 numElementsPerLoad = 1
                 # FIXME: Don't know why for grvw == 1, need further investigate
                 glvwWorkaround = 8 * kernel["ProblemType"]["DataType"].numRegisters()
-                dataType = kernel["ProblemType"]["DataType"] if tP["glvw"] < glvwWorkaround else kernel["ProblemType"]["DataType%s"%tcDataType]
+                dataType = kernel["ProblemType"]["DataType%s"%tcDataType]
+                if ("MXS" not in tcDataType) and tP["glvw"] < glvwWorkaround:
+                    dataType = kernel["ProblemType"]["DataType"]
                 if kernel["ConvertAfterDS"]:
                     dataType = kernel["ProblemType"]["DataType%s"%tcDataType]
                 if dataType.isInt8() or dataType.is8bitFloat() or tP["isM"]:
