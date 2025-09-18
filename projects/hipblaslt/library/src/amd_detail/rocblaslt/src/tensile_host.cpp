@@ -1460,6 +1460,10 @@ namespace
                 tensileProblem.setMXScaleA(rocisa::DataType::E8, 16);
             else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                 tensileProblem.setMXScaleA(rocisa::DataType::Float8, 32);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                tensileProblem.setMXScaleA(rocisa::DataType::E5M3, 16);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                tensileProblem.setMXScaleA(rocisa::DataType::E5M3, 32);
             else
                 ;
         }
@@ -1473,6 +1477,10 @@ namespace
                 tensileProblem.setMXScaleB(rocisa::DataType::E8, 16);
             else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                 tensileProblem.setMXScaleB(rocisa::DataType::Float8, 32);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                tensileProblem.setMXScaleB(rocisa::DataType::E5M3, 16);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                tensileProblem.setMXScaleB(rocisa::DataType::E5M3, 32);
             else
                 ;
         }
@@ -1663,6 +1671,10 @@ namespace
                 tensileProblem.setMXScaleA(rocisa::DataType::E8, 16);
             else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                 tensileProblem.setMXScaleA(rocisa::DataType::Float8, 32);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                tensileProblem.setMXScaleA(rocisa::DataType::E5M3, 16);
+            else if (prob.scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                tensileProblem.setMXScaleA(rocisa::DataType::E5M3, 32);
             else
                 ;
         }
@@ -1676,6 +1688,10 @@ namespace
                 tensileProblem.setMXScaleB(rocisa::DataType::E8, 16);
             else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                 tensileProblem.setMXScaleB(rocisa::DataType::Float8, 32);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                tensileProblem.setMXScaleB(rocisa::DataType::E5M3, 16);
+            else if (prob.scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                tensileProblem.setMXScaleB(rocisa::DataType::E5M3, 32);
             else
                 ;
         }

@@ -1094,6 +1094,18 @@ rocblaslt_status rocblaslt_matmul_desc_set_attribute(rocblaslt_matmul_desc      
                         matmulDesc->scaleAType = RocblasltContractionProblem::ScalingFormat::Block;
                         matmulDesc->scaleAMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT;
                         break;
+                    case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT:
+                        matmulDesc->scaleABlockRowSize = 16;
+                        matmulDesc->scaleABlockColSize = 1;
+                        matmulDesc->scaleAType = RocblasltContractionProblem::ScalingFormat::Block;
+                        matmulDesc->scaleAMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT;
+                        break;
+                    case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT:
+                        matmulDesc->scaleABlockRowSize = 32;
+                        matmulDesc->scaleABlockColSize = 1;
+                        matmulDesc->scaleAType = RocblasltContractionProblem::ScalingFormat::Block;
+                        matmulDesc->scaleAMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT;
+                        break;
                     case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC128_32F:
                     case HIPBLASLT_MATMUL_MATRIX_SCALE_BLK128x128_32F:
                     default:
@@ -1161,6 +1173,18 @@ rocblaslt_status rocblaslt_matmul_desc_set_attribute(rocblaslt_matmul_desc      
                         matmulDesc->scaleBBlockColSize = 32;
                         matmulDesc->scaleBType = RocblasltContractionProblem::ScalingFormat::Block;
                         matmulDesc->scaleBMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT;
+                        break;
+                    case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT:
+                        matmulDesc->scaleBBlockRowSize = 1;
+                        matmulDesc->scaleBBlockColSize = 16;
+                        matmulDesc->scaleBType = RocblasltContractionProblem::ScalingFormat::Block;
+                        matmulDesc->scaleBMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT;
+                        break;
+                    case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT:
+                        matmulDesc->scaleBBlockRowSize = 1;
+                        matmulDesc->scaleBBlockColSize = 32;
+                        matmulDesc->scaleBType = RocblasltContractionProblem::ScalingFormat::Block;
+                        matmulDesc->scaleBMode = ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT;
                         break;
                     case HIPBLASLT_MATMUL_MATRIX_SCALE_VEC128_32F:
                     case HIPBLASLT_MATMUL_MATRIX_SCALE_BLK128x128_32F:
@@ -1432,6 +1456,8 @@ rocblaslt_status rocblaslt_matmul_desc_get_attribute(rocblaslt_matmul_desc      
                         mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0;
                         if (matmulDesc->scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT;
+                        else if (matmulDesc->scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                            mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT;
                         else
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0;
                     }
@@ -1441,6 +1467,8 @@ rocblaslt_status rocblaslt_matmul_desc_get_attribute(rocblaslt_matmul_desc      
                     {
                         if (matmulDesc->scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE8M0_EXT)
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE8M0_EXT;
+                        else if (matmulDesc->scaleAMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                            mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT;
                         else
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3;
                     }
@@ -1489,6 +1517,8 @@ rocblaslt_status rocblaslt_matmul_desc_get_attribute(rocblaslt_matmul_desc      
                     {
                         if (matmulDesc->scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT)
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE4M3_EXT;
+                        else if (matmulDesc->scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT)
+                            mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE5M3_EXT;
                         else
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC32_UE8M0;
                     }
@@ -1498,6 +1528,8 @@ rocblaslt_status rocblaslt_matmul_desc_get_attribute(rocblaslt_matmul_desc      
                     {
                         if (matmulDesc->scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE8M0_EXT)
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE8M0_EXT;
+                        else if (matmulDesc->scaleBMode == ROCBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT)
+                            mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE5M3_EXT;
                         else
                             mode = HIPBLASLT_MATMUL_MATRIX_SCALE_VEC16_UE4M3;
                     }
