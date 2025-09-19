@@ -136,6 +136,9 @@ public:
 
     void set_device_id(int deviceId)
     {
+        if(!enabled())
+            return;
+
         m_smiDeviceIndex = GetROCmSMIIndex(deviceId);
         m_XCDCount       = 1;
 
