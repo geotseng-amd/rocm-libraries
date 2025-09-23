@@ -202,6 +202,18 @@ public:
         return x.value;
     }
 #endif
+
+    // Single NaN e8...
+    explicit operator hipblaslt_e8()
+    {
+        union
+        {
+            uint8_t      bits;
+            hipblaslt_e8 value;
+        } x;
+        x.bits = 0xff;
+        return x.value;
+    }
 };
 
 /* ============================================================================================ */
