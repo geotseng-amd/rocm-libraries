@@ -287,6 +287,8 @@ try
     std::string filter;
     std::string activation_type;
     std::string aux_type;
+    std::string mx_scale_a_type;
+    std::string mx_scale_b_type;
     int         scaleAFormat;
     int         scaleBFormat;
     int         scaleCFormat;
@@ -519,6 +521,14 @@ try
         ("scaleAlpha_vector",
          bool_switch(&arg.scaleAlpha_vector)->default_value(false),
          "Apply scaleAlpha vector")
+
+        ("mx_scale_a_type",
+         value<std::string>(&mx_scale_a_type), "Precision of mx scalar a. "
+        "Options: e8_r, f8_r, e5m3_r")
+
+        ("mx_scale_b_type",
+         value<std::string>(&mx_scale_b_type), "Precision of mx scalar b. "
+        "Options: e8_r, f8_r, e5m3_r")
 
         ("scaleABlockRowSize",
          value<uint32_t>(&arg.scaleABlockRowSize)->default_value(32u),
@@ -927,7 +937,19 @@ try
            && arg.a_type != HIP_R_6F_E3M2_EXT)
             throw std::invalid_argument("Invalid a_type for block scaling format: "s
                                         + hip_datatype_to_string(arg.a_type));
+
+        arg.mx_scale_a_type = mx_scale_a_type == "" ? HIP_R_8F_UE8M0 : string_to_hip_datatype(mx_scale_a_type);
+        if(arg.a_type == HIP_R_4F_E2M1_EXT)
+        {
+           if ((arg.mx_scale_a_type != HIP_R_8F_UE8M0)
+               && (arg.mx_scale_a_type != HIP_R_8F_E4M3)
+               && (arg.mx_scale_a_type != HIP_R_8F_E5M3_EXT))
+            throw std::invalid_argument("Invalid value for --mx_scale_a_type " + mx_scale_a_type);
+        }
+        else if (arg.mx_scale_a_type != HIP_R_8F_UE8M0)
+            throw std::invalid_argument("Invalid value for --mx_scale_a_type " + mx_scale_a_type);
     }
+
     if(arg.scaleB == hipblaslt_scaling_format::Block)
     {
         if(arg.b_type != HIP_R_8F_E4M3 && arg.b_type != HIP_R_8F_E5M2
@@ -935,7 +957,19 @@ try
            && arg.b_type != HIP_R_6F_E3M2_EXT)
             throw std::invalid_argument("Invalid b_type for block scaling format: "s
                                         + hip_datatype_to_string(arg.b_type));
+
+        arg.mx_scale_b_type = mx_scale_b_type == "" ? HIP_R_8F_UE8M0 : string_to_hip_datatype(mx_scale_b_type);
+        if(arg.b_type == HIP_R_4F_E2M1_EXT)
+        {
+           if ((arg.mx_scale_b_type != HIP_R_8F_UE8M0)
+               && (arg.mx_scale_b_type != HIP_R_8F_E4M3)
+               && (arg.mx_scale_b_type != HIP_R_8F_E5M3_EXT))
+            throw std::invalid_argument("Invalid value for --mx_scale_b_type " + mx_scale_b_type);
+        }
+        else if (arg.mx_scale_b_type != HIP_R_8F_UE8M0)
+            throw std::invalid_argument("Invalid value for --mx_scale_b_type " + mx_scale_b_type);
     }
+
     if(arg.scaleA == hipblaslt_scaling_format::Block
        || arg.scaleB == hipblaslt_scaling_format::Block)
     {

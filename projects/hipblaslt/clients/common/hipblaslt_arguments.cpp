@@ -121,6 +121,8 @@ void Arguments::init()
     gradient          = false;
     norm_check_assert = true;
 
+    mx_scale_a_type = HIP_R_8F_UE8M0;
+    mx_scale_b_type = HIP_R_8F_UE8M0;
     scaleABlockRowSize = 0;
     scaleABlockColSize = 0;
     scaleBBlockRowSize = 0;

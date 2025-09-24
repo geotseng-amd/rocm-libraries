@@ -156,6 +156,9 @@ struct Arguments
     bool                     norm_check_assert;
     bool                     swizzle_a;
 
+    hipDataType mx_scale_a_type;
+    hipDataType mx_scale_b_type;
+
     uint32_t scaleABlockRowSize;
     uint32_t scaleABlockColSize;
     uint32_t scaleBBlockRowSize;
@@ -262,6 +265,8 @@ struct Arguments
     OPER(gradient) SEP               \
     OPER(norm_check_assert) SEP      \
     OPER(swizzle_a) SEP              \
+    OPER(mx_scale_a_type) SEP        \
+    OPER(mx_scale_b_type) SEP        \
     OPER(scaleABlockRowSize) SEP     \
     OPER(scaleABlockColSize) SEP     \
     OPER(scaleBBlockRowSize) SEP     \
