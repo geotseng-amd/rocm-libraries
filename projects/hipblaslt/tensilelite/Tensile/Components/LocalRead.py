@@ -258,7 +258,7 @@ class LocalReadMFMA(LocalRead):
                 blocksPerTGroupSMFMA = 1 if isSparseTrack else 2
                 if writer.states.asmCaps["HasSWMMAC_gfx1250"] and not tP["isM"]: blocksPerTGroupSMFMA = 2
                 if blocksPerTGroupSMFMA > 1:
-                    threadGroups = kernel["MatrixInstK"] // MIInputPerThUnroll
+                    threadGroups = kernel["WavefrontSize"] // matrixInstTO
                     elementsPerBlockSMFMA = MIInputPerThUnroll // blocksPerTGroupSMFMA  # need adjust if blocks > 1 and is sparse track.
                     blockStride = elementsPerBlockSMFMA * threadGroups
                     blockOffsetSMFMA = blockStride - elementsPerBlockSMFMA

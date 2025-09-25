@@ -4532,7 +4532,7 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
 
     # no need to generate add code if LdsOffset is 0 or DirectToVgprB
-    if kernel["DirectToVgpr%s"%tc] or ((tc in ("A", "B", "MXSA", "MXSB")) and kernel["DirectToVgpr%s"%tc]):
+    if (tc in ("A", "B", "MXSA", "MXSB")) and kernel["DirectToVgpr%s"%tc]:
       module = Module("lraDeclareAddresses (Empty)")
 
     elif (kernel["LdsOffset%s"%tc] != 0):
