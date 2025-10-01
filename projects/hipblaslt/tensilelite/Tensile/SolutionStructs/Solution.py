@@ -1867,9 +1867,13 @@ class Solution(collections.abc.Mapping):
           if isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
             if state["LocalReadVectorWidthA"] != maxLRVWA:
               reject(state, printRejectionReason, f"gfx1250 requires lrvwA == {maxLRVWA} for MacDataTypeA {state['ProblemType']['MacDataTypeA']}, actual value: {state['LocalReadVectorWidthA']}")
-          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
-            if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] // 2:
-              reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"] // 2))
+          # TODO: Find better conditons to filter gfx1250 solutions
+          # if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
+          #   if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] // 2:
+          #     reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"] // 2))
+          # gfx1250
+          if state["ProblemType"]["Sparse"] and state["LocalReadVectorWidthA"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
+            reject(state, printRejectionReason, "LocalReadVectorWidthA * BytePerMacDataTypeA(%s) > %d bytes." % (state["ProblemType"]["MacDataTypeA"].numBytes(), Solution.MAX_NUM_DS_LOAD_BYTES))
           elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["MacDataTypeA"].is8bitFloat() and (state["MatrixInstK"] in [64, 128,])):
             if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] and not state["LDSTrInst"] and not isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
               reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"]))
@@ -3109,8 +3113,8 @@ class Solution(collections.abc.Mapping):
       if state["PrefetchGlobalRead"] and not state["ExpandPointerSwap"]:
         reject(state, printRejectionReason, "Sparse A kernel only support PGR with EPS=1.")
         return
-      if state["EnableMatrixInstruction"] and state["MIArchVgpr"]:
-        reject(state, printRejectionReason, "Sparse A kernel does not support MIArchVgpr yet.")
+      if not isaInfoMap[isa].asmCaps["HasSWMMAC"] and state["EnableMatrixInstruction"] and state["MIArchVgpr"]:
+        reject(state, printRejectionReason, "Current ISA does not support MIArchVgpr in Sparse kernels.")
         return
       # Not Support Feature
       if state["ProblemType"]["Sparse"] == 1 and state["SourceSwap"] :
