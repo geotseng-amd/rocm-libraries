@@ -138,6 +138,8 @@ void mfma_inst(nb::module_ m_mfma)
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       bool,
+                      bool,
+                      bool,
                       const std::string&>(),
              nb::arg("instType"),
              nb::arg("accType"),
@@ -148,6 +150,8 @@ void mfma_inst(nb::module_ m_mfma)
              nb::arg("b"),
              nb::arg("acc2")    = nullptr,
              nb::arg("neg")     = false,
+             nb::arg("reuseA")  = false,
+             nb::arg("reuseB")  = false,
              nb::arg("comment") = "")
         .def_rw("a", &rocisa::MFMAInstruction::a)
         .def_rw("b", &rocisa::MFMAInstruction::b)
@@ -173,6 +177,8 @@ void mfma_inst(nb::module_ m_mfma)
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       int,
+                      bool,
+                      bool,
                       const std::string&>(),
              nb::arg("instType"),
              nb::arg("accType"),
@@ -186,6 +192,8 @@ void mfma_inst(nb::module_ m_mfma)
              nb::arg("mxsa"),
              nb::arg("mxsb"),
              nb::arg("block"),
+             nb::arg("reuseA")  = false,
+             nb::arg("reuseB")  = false,
              nb::arg("comment") = "")
         .def_rw("a", &rocisa::MXMFMAInstruction::a)
         .def_rw("b", &rocisa::MXMFMAInstruction::b)
@@ -209,7 +217,7 @@ void mfma_inst(nb::module_ m_mfma)
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       const std::shared_ptr<rocisa::RegisterContainer>&,
                       const std::shared_ptr<rocisa::RegisterContainer>&,
-                      bool, 
+                      bool,
                       const std::string&>(),
              nb::arg("instType"),
              nb::arg("accType"),

@@ -1144,7 +1144,6 @@ class ProblemType(Mapping):
     state["TLUB"] = strideIdxB < unrollIdxB
     if state["MXBlockB"]:
       state["TLUMXSB"] = state["TLUB"]
-    #state["TLUB"] = True # hack
 
     if printIndexAssignmentInfo:
       print("TLUA:  %s (stridePosA(%d) <? unrollIdxA(%d)" % \
