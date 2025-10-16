@@ -1435,6 +1435,15 @@ class Solution(collections.abc.Mapping):
             reject(state, printRejectionReason, "one of DataTypeA or DataTypeB need to be float8/float8_fnuz")
             return
 
+    if state["TDMInst"]:
+      if not isaInfoMap[isa].asmCaps["HasTDM"]:
+        reject(state, printRejectionReason, "This arch does not support TDM")
+        return
+
+    tdmInst: int = state["TDMInst"]
+    state["enableTDMA"] = bool(tdmInst & 0x01)
+    state["enableTDMB"] = bool(tdmInst & 0x02)
+
     # DepthU == -1?
     if state["DepthU"] == -1:
       depthuList = [1024,512,256,128,64,32,16]
@@ -2878,6 +2887,8 @@ class Solution(collections.abc.Mapping):
     # set NoLdsWriteCode if (DirectToVgpr or DirectToLds)A+B is enabled
     state["NoLdsWriteCode"] = False
     if (state["DirectToVgprA"] or state["DirectToLdsA"]) and (state["DirectToVgprB"] or state["DirectToLdsB"]):
+      state["NoLdsWriteCode"] = True
+    elif state["enableTDMA"] and state["enableTDMB"]:
       state["NoLdsWriteCode"] = True
 
     # calculate ldsPad

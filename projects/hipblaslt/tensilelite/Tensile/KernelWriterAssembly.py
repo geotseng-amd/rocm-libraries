@@ -69,7 +69,8 @@ from rocisa.instruction import BranchInstruction, BufferLoadB128, BufferLoadB32,
   VMulHIU32, VMulLOU32, VMulPKF32S, VMulU32U24, VNotB32, VOrB32, VPackF16toB32, \
   VPrngB32, VReadfirstlaneB32, VSubF32, VSubI32, VSubU32, VXorB32
 
-from .Component import Component
+from .Component import Component, TensorDataMover
+from .Components.TensorDataMover import TensorDataMoverLoad
 from .KernelWriterModules import *
 from .SolutionStructs import isPackedIndex
 from .AsmStoreState import StoreState, VectorDataTypes
@@ -88,7 +89,7 @@ from math import ceil, floor, log
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import List, NamedTuple, Optional, Tuple, Union
+from typing import List, Mapping, NamedTuple, Optional, Tuple, Union
 
 import os
 
@@ -557,11 +558,25 @@ class KernelWriterAssembly(KernelWriter):
     # (we reclaim them to use as temps, typically for execmasks)
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
+    if kernel["enableTDMA"] or kernel["enableTDMA"]:
+      module.add(self.defineSgpr("tdmGroup3", 4, 4))
+
+    if kernel["enableTDMA"]:
+      module.add(self.defineSgpr("tdmAGroup0", 4, 4))
+      module.add(self.defineSgpr("tdmAGroup1", 8, 4))
+      module.add(self.defineSgpr("tdmAGroup2", 4, 4))
+
+    if kernel["enableTDMB"]:
+      module.add(self.defineSgpr("tdmBGroup0", 4, 4))
+      module.add(self.defineSgpr("tdmBGroup1", 8, 4))
+      module.add(self.defineSgpr("tdmBGroup2", 4, 4))
 
     if kernel["BufferLoad"]:
        # resource descriptor (SRD) A and B, must be aligned on 4-SGPR boundary
-      module.add(self.defineSgpr("SrdA", 4, 4))
-      module.add(self.defineSgpr("SrdB", 4, 4))
+      if not kernel["enableTDMA"]:
+        module.add(self.defineSgpr("SrdA", 4, 4))
+      if not kernel["enableTDMB"]:
+        module.add(self.defineSgpr("SrdB", 4, 4))
       if kernel["ProblemType"]["MXBlockA"]:
         module.add(self.defineSgpr("SrdMXSA", 4, 4))
       if kernel["ProblemType"]["MXBlockB"]:
@@ -570,8 +585,10 @@ class KernelWriterAssembly(KernelWriter):
         module.add(self.defineSgpr("SrdMetadata", 4, 4))
 
     if self.states.use64bShadowLimit:
-      module.add(self.defineSgpr("ShadowLimitA", 2, 2))
-      module.add(self.defineSgpr("ShadowLimitB", 2, 2))
+      if not kernel["enableTDMA"]:
+        module.add(self.defineSgpr("ShadowLimitA", 2, 2))
+      if not kernel["enableTDMB"]:
+        module.add(self.defineSgpr("ShadowLimitB", 2, 2))
       if kernel["ProblemType"]["MXBlockA"]:
         module.add(self.defineSgpr("ShadowLimitMXSA", 2, 2))
       if kernel["ProblemType"]["MXBlockB"]:
@@ -647,12 +664,12 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["_UseSgprForGRO"]:
       needFirstSgprOffset = kernel["DirectToLdsA"] and kernel["UseInstOffsetForGRO"]
       numberOfSgpr = self.states.a.numVgprGlobalReadOffsets if needFirstSgprOffset else (self.states.a.numVgprGlobalReadOffsets-1)
-      if numberOfSgpr > 0:
+      if numberOfSgpr > 0 and not kernel["enableTDMA"]:
         module.add(self.defineSgpr("ScalarGlobalReadOffsetA", numberOfSgpr))
 
       needFirstSgprOffset = kernel["DirectToLdsB"] and kernel["UseInstOffsetForGRO"]
       numberOfSgpr = self.states.b.numVgprGlobalReadOffsets if needFirstSgprOffset else (self.states.b.numVgprGlobalReadOffsets-1)
-      if numberOfSgpr > 0:
+      if numberOfSgpr > 0 and not kernel["enableTDMB"]:
         module.add(self.defineSgpr("ScalarGlobalReadOffsetB", numberOfSgpr))
 
       if kernel["ProblemType"]["MXBlockA"]:
@@ -2421,12 +2438,14 @@ class KernelWriterAssembly(KernelWriter):
 
     # self.states.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.states.groOffsetInMacroTile:
-      prePad = int(self.states.srdShiftLeft["A"] * tPA["bpeGR"]) # leave room in case we have to pointer shift
-      module.add(SSubU32(dst=sgpr("AddressA+0"), src0=sgpr("AddressA+0"), src1=prePad, comment="pre-pad to make room for possible pointer shift"))
-      module.add(SSubBU32(dst=sgpr("AddressA+1"), src0=sgpr("AddressA+1"), src1=0, comment="pre-pad to make room for possible pointer shift"))
-      prePad = int(self.states.srdShiftLeft["B"] * tPB["bpeGR"]) # leave room in case we have to pointer shift
-      module.add(SSubU32(dst=sgpr("AddressB+0"), src0=sgpr("AddressB+0"), src1=prePad, comment="pre-pad to make room for possible pointer shift"))
-      module.add(SSubBU32(dst=sgpr("AddressB+1"), src0=sgpr("AddressB+1"), src1=0, comment="pre-pad to make room for possible pointer shift"))
+      if not kernel["enableTDMA"]:
+        prePad = int(self.states.srdShiftLeft["A"] * tPA["bpeGR"]) # leave room in case we have to pointer shift
+        module.add(SSubU32(dst=sgpr("AddressA+0"), src0=sgpr("AddressA+0"), src1=prePad, comment="pre-pad to make room for possible pointer shift"))
+        module.add(SSubBU32(dst=sgpr("AddressA+1"), src0=sgpr("AddressA+1"), src1=0, comment="pre-pad to make room for possible pointer shift"))
+      if not kernel["enableTDMB"]:
+        prePad = int(self.states.srdShiftLeft["B"] * tPB["bpeGR"]) # leave room in case we have to pointer shift
+        module.add(SSubU32(dst=sgpr("AddressB+0"), src0=sgpr("AddressB+0"), src1=prePad, comment="pre-pad to make room for possible pointer shift"))
+        module.add(SSubBU32(dst=sgpr("AddressB+1"), src0=sgpr("AddressB+1"), src1=0, comment="pre-pad to make room for possible pointer shift"))
       if kernel["ProblemType"]["MXBlockA"]:
         prePad = int(self.states.srdShiftLeft["MXSA"]) # leave room in case we have to pointer shift
         module.add(SSubU32(dst=sgpr("AddressMXSA+0"), src0=sgpr("AddressMXSA+0"), src1=prePad, comment="pre-pad to make room for possible pointer shift"))
@@ -3517,7 +3536,7 @@ class KernelWriterAssembly(KernelWriter):
 
     needFirstSgprOffset = kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]
 
-    if (kernel["_UseSgprForGRO"] or self.states.checkGRO) and (needFirstSgprOffset or graIdx > 0):
+    if (kernel["_UseSgprForGRO"] or self.states.checkGRO) and (needFirstSgprOffset or graIdx > 0) and not kernel["enableTDM%s"%tc]:
       # compute offsets for scalar global read offsets:
       if kernel["_UseSgprForGRO"]:
         tmpIdx = graIdx if needFirstSgprOffset else graIdx-1
@@ -6168,6 +6187,7 @@ class KernelWriterAssembly(KernelWriter):
                 evenIterCode.add(SWaitAlu(vm_vsrc=0, comment="wait for local read to vgpr complete"))
 
             # Generate local write address code only for PrefetchGlobalRead==2
+            #TODO: TDM
             if not kernel["DirectToLdsA"]:
               evenIterCode.add(self.localWriteSwapOffsets(kernel, False, tPA))
             if ("MX" in tPA) and (not kernel["DirectToLdsMXSA"]):
@@ -8251,12 +8271,18 @@ class KernelWriterAssembly(KernelWriter):
 
     incCodeA = imod.add(Module("globalReadIncrementA"))
     if tPA != None:
-      self.globalReadIncrement(kernel, incCodeA, loopIdx, tPA, prefetchIndex)
+      if not kernel["enableTDMA"]:
+        self.globalReadIncrement(kernel, incCodeA, loopIdx, tPA, prefetchIndex)
+      else:
+        incCodeA.add(self.tdmIncrementAB(kernel, tPA))
       if "MX" in tPA:
         self.globalReadIncrement(kernel, incCodeA, loopIdx, tPA["MX"], prefetchIndex)
     incCodeB = imod.add(Module("globalReadIncrementB"))
     if tPB != None:
-      self.globalReadIncrement(kernel, incCodeB, loopIdx, tPB, prefetchIndex)
+      if not kernel["enableTDMB"]:
+        self.globalReadIncrement(kernel, incCodeB, loopIdx, tPB, prefetchIndex)
+      else:
+        incCodeB.add(self.tdmIncrementAB(kernel, tPB))
       if "MX" in tPB:
         self.globalReadIncrement(kernel, incCodeB, loopIdx, tPB["MX"], prefetchIndex)
     return imod
@@ -9059,6 +9085,16 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]:
       return imod
 
+    if tc == "A" and kernel["enableTDMA"]:
+      comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+      imod.add(comp.issueLoad("tdmAGroup0", "tdmAGroup1", "tdmAGroup2", "tdmGroup3"))
+      return imod
+
+    if tc == "B" and kernel["enableTDMB"]:
+      comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+      imod.add(comp.issueLoad("tdmBGroup0", "tdmBGroup1", "tdmBGroup2", "tdmGroup3"))
+      return imod
+
     # sizeK % LOCAL_DEPTHU
     guardK = (mode==2)
 
@@ -9323,7 +9359,21 @@ class KernelWriterAssembly(KernelWriter):
 
     return imod
 
+  def tdmSwapLdsOffset(self, kernel, tP) -> Module:
+    tc: str = tP["tensorChar"]
+    needSwap: bool = not kernel["1LDSBuffer"]
 
+    if not needSwap:
+      return Module("TDM LDS swap (Empty)")
+
+    assert kernel["LdsAlignPow2"], "Currently TDM only supports LDS starts with power of 2"
+
+    swapMask: int = kernel[f"LdsOffsetA_Blk"]
+    comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+    ldsAddrSgprName: str = comp.getLdsAddrSgprName(f"tdm{tc}Group1")
+    module: Module = Module()
+    module.add(SXorB32(sgpr(ldsAddrSgprName), sgpr(ldsAddrSgprName), hex(swapMask)))
+    return module
 
   ##############################################################################
   # Local Write: Swap Offsets A/B
@@ -15205,6 +15255,55 @@ class KernelWriterAssembly(KernelWriter):
                       module.add(VMovB32(dst=vgpr(destVgpr), src=vgpr(srcVgpr), comment="shift vgpr for 6 bits"))
                   r += 16
       return module
+
+  def initTDMDescriptor(self, kernel: Mapping, tP: Mapping) -> Module:
+    comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+    tc: str = tP['tensorChar']
+    ti: int = tP["idx"]
+    tileChar: str = tP["tileChar"]
+    mod = Module(f"Init TDM Descriptor {tc}")
+
+    def descSgprName(idx: int) -> str:
+      if idx < 3:
+        return f"tdm{tc}Group{idx}"
+      return f"tdmGroup{idx}"
+
+    def strideRefName() -> str:
+      return f"Stride{tc}{tileChar}"
+
+    def sizeRefName(idx: int) -> str:
+      idxChar= INDEX_CHARS[idx]
+      return f"Size{idxChar}"
+
+    dtype: DataType = kernel["ProblemType"][f"DataType{tc}"]
+    mt: int = kernel[f"MacroTile{ti}"]
+    du: int = kernel["DepthU"]
+    sizeTile0, sizeTile1 = du, mt
+    ldsOffset: int = kernel[f"LdsOffset{tc}"]
+
+    mod.add(comp.initOperands(descSgprName(0), descSgprName(1), descSgprName(2), descSgprName(3)))
+    mod.add(comp.setDataType(dtype, descSgprName(1)))
+    mod.add(comp.setGlobalAddr(descSgprName(0), f"Address{tc}"))
+    mod.add(comp.setLdsAddr(descSgprName(0), ldsOffset))
+    mod.add(comp.setIterationEnabled(descSgprName(1), False))
+    mod.add(comp.setTensorDim0(descSgprName(1), sizeRefName(3), self))
+    mod.add(comp.setTensorDim1(descSgprName(1), sizeRefName(ti), self))
+    mod.add(comp.setTensorTile0(descSgprName(1), sizeTile0, self))
+    mod.add(comp.setTensorTile1(descSgprName(1), sizeTile1, self))
+    mod.add(comp.setTensorStride0(descSgprName(1), strideRefName()))
+    return mod
+
+  def tdmGlobalOffset(self, kernel: Mapping, tP: Mapping) -> Module:
+    comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+    tc: str = tP['tensorChar']
+    return comp.calculateStartAddr(self, kernel, tP, f"Address{tc}")
+
+  def tdmIncrementAB(self, kernel, tP) -> Module:
+    comp: TensorDataMoverLoad = TensorDataMoverLoad.find(self)
+    tc: str = tP['tensorChar']
+    mod = Module("TDM increment")
+    mod.add(comp.incrementGlobalAddr(f"tdm{tc}Group0", f"GlobalReadIncs{tc}"))
+    return mod
 
 def _getEccOffset(totalWidth, bpr, bpe, glvw, idx, numVgprG2L):
   if totalWidth < 1: # Need extra offset if global read < 1

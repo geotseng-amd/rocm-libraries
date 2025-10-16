@@ -830,6 +830,12 @@ validParameters = { # we need to make sure this matches develop
     # 0  : Fetch from workgroup dim -> elements dim. (default)
     # 1  : Fetch from elements dim -> workgroup dim. Has better prefetch pattern when # store elements is large.
     "MbskPrefetchMethod": [-1, 0, 1],
+    # Enable tensor data mover for VM -> LDS
+    # 0: Disable
+    # 1: Use TDM for A
+    # 2: Use TDM for B
+    # 3: Use TDM for both A and B
+    "TDMInst": [0, 1, 2, 3]
 }
 
 newMIValidParameters = {
