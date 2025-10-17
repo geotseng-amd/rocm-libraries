@@ -1482,8 +1482,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if isinstance(ds, DSLoadInstruction) and hasAnyDependency(ds, instsToCheck):
               break
 
-            if isinstance(ds, DSLoadInstruction) and not hasAnyDependency(ds, instsToCheck) or isinstance(ds, DSStoreInstruction):
-              numDsInsts += 1
+            if isinstance(ds, DSLoadInstruction) and not hasAnyDependency(ds, instsToCheck):
+              numDsInsts += countWeightedLocalRead(ds)
+            elif isinstance(ds, DSStoreInstruction):
+              numDsInsts += countWeightedLocalWrite(ds)
             elif isinstance(ds, SWaitCnt):
               if ds.lgkmcnt >= 0 and lastLgkmCnt == -1:
                 lastLgkmCnt = ds.lgkmcnt + numDsInsts
