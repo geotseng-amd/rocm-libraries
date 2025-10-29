@@ -58,7 +58,7 @@ import collections
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, NamedTuple, Optional,Tuple, Type
-from math import ceil
+from math import ceil, prod
 
 # Make const values immutable
 @dataclass(frozen=True)
@@ -2002,9 +2002,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(self.localWriteAddresses(kernel, tensorParametersA, tensorParametersB, tPM))
     
     tdmA: bool = kernel["enableTDMA"]
-    tdmB: bool = kernel["enableTDMA"]
+    tdmB: bool = kernel["enableTDMB"]
+    tdmInited: bool = False
+
+    #TODO: TDM wave separated
+    if tdmA and tdmB and prod(kernel["MIWaveGroup"]) > 1:
+      module.add(self.tdmGlobalOffsetWaveSeparated(kernel, tensorParametersA, tensorParametersB))
+      module.add(self.initTDMDescriptorWaveSeparated(kernel, tensorParametersA, tensorParametersB))
+      tdmInited = True
+
     # Tile offset assignment A(MXSA)
-    if tdmA:
+    if tdmA and not tdmInited:
       module.add(self.tdmGlobalOffset(kernel, tensorParametersA))
       module.add(self.initTDMDescriptor(kernel, tensorParametersA))
     else:
@@ -2025,7 +2033,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["ProblemType"]["MXBlockB"]:
       module.addComment1("global read addresses: tile offset assignment mxsb")
       module.add(self.graTileAssignment(kernel, tensorParametersB["MX"]))
-    if tdmB:
+    if tdmB and not tdmInited:
       module.add(self.tdmGlobalOffset(kernel, tensorParametersB))
       module.add(self.initTDMDescriptor(kernel, tensorParametersB))
     else:
@@ -2570,8 +2578,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
               pointerLWCode.addComment1("local write swap offsets mxsb")
               pointerLWCode.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB["MX"]))
             if kernel["enableTDMB"]:
-              pointerLWCode.addComment1("tdm swap offsets b")
-              pointerLWCode.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
+              #TODO: TDM refactor
+              if prod(kernel["MIWaveGroup"]) == 1:
+                pointerLWCode.addComment1("tdm swap offsets b")
+                pointerLWCode.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
             else:
               pointerLWCode.addComment1("local write swap offsets b")
               pointerLWCode.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB))
@@ -3129,8 +3139,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             pointerLWCode.addComment1("local write swap offsets mxsb")
             pointerLWCode.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB["MX"]))
           if kernel["enableTDMB"]:
-            pointerLWCode.addComment1("tdm swap offsets b")
-            pointerLWCode.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
+            #TODO: TDM refactor
+            if prod(kernel["MIWaveGroup"]) == 1:
+              pointerLWCode.addComment1("tdm swap offsets b")
+              pointerLWCode.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
           else:
             pointerLWCode.addComment1("local write swap offsets b")
             pointerLWCode.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB))
@@ -3292,8 +3304,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         module.addComment1("local write swap mxsb")
         module.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB["MX"]))
       if kernel["enableTDMB"]:
-        module.addComment1("TDM swap lds b")
-        module.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
+        #TODO: TDM refactor
+        if prod(kernel["MIWaveGroup"]) == 1:
+          module.addComment1("TDM swap lds b")
+          module.add(self.tdmSwapLdsOffset(kernel, tensorParametersB))
       else:
         module.addComment1("local write swap b")
         module.add(self.localWriteSwapOffsets(kernel, expand, tensorParametersB))
@@ -3724,7 +3738,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.oriLwaA = None # back up original local write address vgpr
       self.oriLwaB = None
       self.oriLwaM = None
-      if not kernel["NoLdsWriteCode"] or kernel["NonsDTLTailLoopA"] or kernel["NonDTLTailLoopB"]:
+      if not kernel["NoLdsWriteCode"] or kernel["NonDTLTailLoopA"] or kernel["NonDTLTailLoopB"]:
         # TODO: Check correctness for TDM
           # Tail: local write A(MXSA)
           if kernel["ProblemType"]["MacDataTypeA"].is6bitFloat() or kernel["ProblemType"]["MacDataTypeB"].is6bitFloat():
@@ -6934,10 +6948,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def initTDMDescriptor(self, kernel, tP) -> Module:
     assert False, "Should be overrided"
 
+  def initTDMDescriptorWaveSeparated(self, kernel, tPA, tPB) -> Module:
+    assert False, "Should be overrided"
+
   def tdmGlobalOffset(self, kernel, tP) -> Module:
     assert False, "Should be overrided"
 
+  def tdmGlobalOffsetWaveSeparated(self, kernel, tPA, tPB) -> Module:
+    assert False, "Should be overrided"
+
   def tdmIncrementAB(self, kernel, tP) -> Module:
+    assert False, "Should be overrided"
+
+  def tdmIncrementABWaveSperated(self, kernel, tPA, tPB) -> Module:
     assert False, "Should be overrided"
 
 ##############################################################################
