@@ -50,15 +50,11 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [1, 1]
-          - [2, 2]
-          - [4, 4]
           - [8, 8]
         - WorkGroup:
           - [4, 8, 1]
           - [8, 4, 1]
-          - [2, 16, 1]
-          - [16, 2, 1]
-        - DepthU: [4,16,32] #
+        - DepthU: [4,32] #
         - TransposeLDS: [-1]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
@@ -115,15 +111,11 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [1, 1]
-          - [2, 2]
-          - [4, 4]
           - [8, 8]
         - WorkGroup:
           - [4, 8, 1]
           - [8, 4, 1]
-          - [2, 16, 1]
-          - [16, 2, 1]
-        - DepthU: [4,16,32] #
+        - DepthU: [4,32] #
         - TransposeLDS: [-1]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
@@ -180,15 +172,11 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [1, 1]
-          - [2, 2]
-          - [4, 4]
           - [8, 8]
         - WorkGroup:
           - [4, 8, 1]
           - [8, 4, 1]
-          - [2, 16, 1]
-          - [16, 2, 1]
-        - DepthU: [4,16,32] #
+        - DepthU: [4,32] #
         - TransposeLDS: [-1]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
@@ -245,15 +233,11 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [1, 1]
-          - [2, 2]
-          - [4, 4]
           - [8, 8]
         - WorkGroup:
           - [4, 8, 1]
           - [8, 4, 1]
-          - [2, 16, 1]
-          - [16, 2, 1]
-        - DepthU: [4,16,32] #
+        - DepthU: [4,32] #
         - TransposeLDS: [-1]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
