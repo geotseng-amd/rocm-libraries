@@ -603,14 +603,15 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PrefetchGlobalRead"] == 2 and isDTVAorB:
       # PGR2 + DTVA or B (only 1 side), need separate StaggerUIter for DTV load
       module.add(self.defineSgpr("StaggerUIterDTV", 1))  # stagger loop iterations, used for various iter counts in the code
-    module.add(self.defineSgpr("WrapUA", 2))  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
-    module.add(self.defineSgpr("WrapUB", 2))  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
+    wrapAlignment = 2 if self.states.asmCaps["s_sub_u64"] and self.states.asmCaps["HasWMMA_V3"] else 1
+    module.add(self.defineSgpr("WrapUA", 2, wrapAlignment))  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
+    module.add(self.defineSgpr("WrapUB", 2, wrapAlignment))  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
     if kernel["ProblemType"]["MXBlockA"]:
-      module.add(self.defineSgpr("WrapUMXSA", 2))  # Bytes to add to SrdA to reset address from N-1 iter to AddressMXSA
+      module.add(self.defineSgpr("WrapUMXSA", 2, wrapAlignment))  # Bytes to add to SrdA to reset address from N-1 iter to AddressMXSA
     if kernel["ProblemType"]["MXBlockB"]:
-      module.add(self.defineSgpr("WrapUMXSB", 2))  # Bytes to add to SrdA to reset address from N-1 iter to AddressMXSB
+      module.add(self.defineSgpr("WrapUMXSB", 2, wrapAlignment))  # Bytes to add to SrdA to reset address from N-1 iter to AddressMXSB
     if kernel["ProblemType"]["Sparse"]:
-      module.add(self.defineSgpr("WrapUMetadata", 2))  # Bytes to add to SrdMetadata to reset address from N-1 iter to AddressMetadata
+      module.add(self.defineSgpr("WrapUMetadata", 2, wrapAlignment))  # Bytes to add to SrdMetadata to reset address from N-1 iter to AddressMetadata
 
     module.add(self.defineSgpr("GlobalReadIncsA", self.states.a.numSgprGlobalReadIncs))
     module.add(self.defineSgpr("GlobalReadIncsB", self.states.b.numSgprGlobalReadIncs))
@@ -8280,6 +8281,10 @@ class KernelWriterAssembly(KernelWriter):
       incCodeA = imod.add(Module("globalReadIncrementA"))
       incCodeA.add(self.tdmIncrementABWaveSperated(kernel, tPA, tPB))
       incCodeB = imod.add(Module("globalReadIncrementB"))
+      if "MX" in tPA:
+        self.globalReadIncrement(kernel, incCodeA, loopIdx, tPA["MX"], prefetchIndex)
+      if "MX" in tPB:
+        self.globalReadIncrement(kernel, incCodeB, loopIdx, tPB["MX"], prefetchIndex)
       return imod
 
     incCodeA = imod.add(Module("globalReadIncrementA"))
@@ -9926,6 +9931,25 @@ class KernelWriterAssembly(KernelWriter):
       LWDoMod.add(LWDoMXSB)
     LWDoMod.addComment1("local write b")
     LWDoMod.add(LWDoB)
+    return imod
+
+  def preLoopLocalWriteDoMX(self, kernel, tPA, tPB):
+    imod = Module()
+    LWDoMod = imod.add(Module())
+    if ("MX" in tPA) and self.do["LocalWrite%s"%tPA["MX"]["tensorChar"]]:
+      LWDoMXSA = self.localWriteDo(kernel, tPA["MX"])
+    else:
+      LWDoMXSA = Module()
+    if ("MX" in tPB) and self.do["LocalWrite%s"%tPB["MX"]["tensorChar"]]:
+      LWDoMXSB = self.localWriteDo(kernel, tPB["MX"])
+    else:
+      LWDoMXSB = Module()
+    if ("MX" in tPA):
+      LWDoMod.addComment1("local write mxsa")
+      LWDoMod.add(LWDoMXSA)
+    if ("MX" in tPB):
+      LWDoMod.addComment1("local write mxsb")
+      LWDoMod.add(LWDoMXSB)
     return imod
 
   ##############################################################################

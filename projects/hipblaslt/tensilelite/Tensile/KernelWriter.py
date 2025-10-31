@@ -2822,6 +2822,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.codes.localWriteMXSB = Module()
       self.codes.localWriteB = self.localWriteDo(kernel, tensorParametersB)
+    elif kernel["enableTDMA"] and kernel["enableTDMB"]:
+      #TODO: force mx ds write when TDM enabled
+      self.codes.localWriteA = Module()
+      self.codes.localWriteB = Module()
+      if "MX" in tensorParametersA:
+        self.codes.localWriteMXSA = self.localWriteDo(kernel, tensorParametersA["MX"])
+      else:
+        self.codes.localWriteMXSA = Module()
+      if "MX" in tensorParametersB:
+        self.codes.localWriteMXSB = self.localWriteDo(kernel, tensorParametersB["MX"])
+      else:
+        self.codes.localWriteMXSB = Module()
     else:
       self.codes.localWriteA = Module()
       self.codes.localWriteMXSA = Module()
@@ -2861,6 +2873,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
         module.add(tempLWCodeModB)
         module.add(self._wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
         module.add(self._syncThreads(kernel))
+      elif kernel["enableTDMA"] and kernel["enableTDMB"]:
+        #TODO: force ds write here for TDM enabled
+        if "MX" in tensorParametersA:
+          module.addComment1("local write mxsa")
+          tempLWCodeModMXSA = self.localWriteDo(kernel, tensorParametersA["MX"])
+          module.add(tempLWCodeModMXSA)
+        if "MX" in tensorParametersB:
+          module.addComment1("local write mxsb")
+          tempLWCodeModMXSB = self.localWriteDo(kernel, tensorParametersB["MX"])
+          module.add(tempLWCodeModMXSB)
       # debug Local state
       """
       module.add("    /* print Local state */" + self.endLine)
@@ -2960,6 +2982,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
             else:
               self.codes.localWriteMXSB = Module()
             self.codes.localWriteB = self.localWriteDo(kernel, tensorParametersB)
+        elif kernel["enableTDMA"] and kernel["enableTDMB"]:
+          #TODO: force mx ds write when TDM enabled
+          self.codes.localWriteA = Module()
+          self.codes.localWriteB = Module()
+          if "MX" in tensorParametersB:
+            self.codes.localWriteMXSA = self.localWriteDo(kernel, tensorParametersB["MX"], swapAB=dsWriteBA)
+          else:
+            self.codes.localWriteMXSA = Module()
+          if "MX" in tensorParametersA:
+            self.codes.localWriteMXSB = self.localWriteDo(kernel, tensorParametersA["MX"], swapAB=dsWriteBA)
+          else:
+            self.codes.localWriteMXSB = Module()
         else:
           self.codes.localWriteA = Module()
           self.codes.localWriteMXSA = Module()
@@ -3292,6 +3326,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if not kernel["NoLdsWriteCode"]:
         preLoopLocalWriteCode = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
         module.add(preLoopLocalWriteCode)
+      elif kernel["enableTDMA"] and kernel["enableTDMB"]:
+        preLoopLocalWriteCode = self.preLoopLocalWriteDoMX(kernel, tensorParametersA, tensorParametersB)
+        module.add(preLoopLocalWriteCode)
+
       #TODO: TDM
       # Swap local ptrs A(MXSA)
       if kernel["enableTDMA"]:
@@ -3762,6 +3800,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
           module.addComment1("local write b")
           tempLWCodeModB = self.localWriteDo(kernel, tensorParametersB)
           module.add(tempLWCodeModB)
+      elif kernel["enableTDMA"] and kernel["enableTDMB"]:
+        #TODO: force write when TDM enabled
+        if "MX" in tensorParametersA:
+          module.addComment1("local write mxsa")
+          tempLWCodeModMXSA = self.localWriteDo(kernel, tensorParametersA["MX"])
+          module.add(tempLWCodeModMXSA)
+        # Tail: local write B(MXSB)
+        if "MX" in tensorParametersB:
+          module.addComment1("local write mxsb")
+          tempLWCodeModMXSB = self.localWriteDo(kernel, tensorParametersB["MX"])
+          module.add(tempLWCodeModMXSB)
       # change local read policy from wider local read to one unit of K at a time
       # DirectToVgpr case, use original wider local read instead of recalculating local read address
       if not (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
