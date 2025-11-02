@@ -2957,14 +2957,11 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetMetadata_Blk"] = state["LdsOffsetMXSB_Blk"] + state["LdsNumElementsAlignedMXSB"]
       state["LdsOffsetB_Blk"] = state["LdsOffsetMetadata_Blk"] + state["LdsNumElementsAlignedMetadata"]
       ldsNumBytesAB = state["LdsOffsetB_Blk"] + ldsNumBytesB
-    else:
-      ldsNumBytesAB = state["LdsOffsetB"] + ldsNumBytesB
-
-    if state["PrefetchGlobalRead"]:
       state["LdsAlignPow2"] = True
       # For LDS size != pow(2)
       if state["MaxLDS"] & (state["MaxLDS"]-1) != 0 and ldsNumBytesAB > state["MaxLDS"]:
-        # AAMMBB layout
+        state["LdsAlignPow2"] = False
+        # AA(MX)(MX)MMBB layout
         state["LdsOffsetA"] = 0
         state["LdsOffsetA_Blk"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
         state["LdsOffsetMXSA"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
@@ -2976,6 +2973,8 @@ class Solution(collections.abc.Mapping):
         state["LdsOffsetB"] = state["LdsOffsetMetadata_Blk"] + state["LdsNumElementsAlignedMetadata"]
         state["LdsOffsetB_Blk"] = state["LdsOffsetB"] + state["LdsNumElementsAlignedB"]
         ldsNumBytesAB = state["LdsOffsetB_Blk"] + ldsNumBytesB
+    else:
+      ldsNumBytesAB = state["LdsOffsetB"] + ldsNumBytesB
 
     # lds buffer size for reduction
     # if User want to control the LDS usage, we may open this para in the future
