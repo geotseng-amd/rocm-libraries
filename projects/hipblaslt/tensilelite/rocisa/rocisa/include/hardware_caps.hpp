@@ -410,7 +410,7 @@ inline std::map<std::string, int> initArchCaps(const IsaVersion& isaVersion)
     rv["CrosslaneWait"]      = checkInList(isaVersion, {{9, 4, 2}, {9, 5, 0}});
     rv["TransOpWait"]        = checkInList(isaVersion, {{9, 4, 2}, {9, 5, 0}});
     rv["SDWAWait"]           = checkInList(isaVersion, {{9, 4, 2}, {9, 5, 0}});
-    rv["VgprBank"]           = checkInList(isaVersion[0], {10, 11, 12});
+    rv["VgprBank"]           = checkInList(isaVersion[0], {10, 11, 12}) && !(isaVersion[0] == 12 && isaVersion[1] == 5) ;
     rv["DSLow16NotPreserve"] = isaVersion[0] == 12;
     rv["WorkGroupIdFromTTM"] = isaVersion[0] == 12;
     rv["NoSDWA"]             = isaVersion[0] == 12;
