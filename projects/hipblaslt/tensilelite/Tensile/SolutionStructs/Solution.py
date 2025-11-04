@@ -1578,7 +1578,7 @@ class Solution(collections.abc.Mapping):
     # TODO-
     #  On gfx1250, i8, f8, it seem working for 1LDSBuffer=0 "BUT EPS=0", haven't checked for other archs/types, so we still reject by 1LDSBuffer only
     # if (state["enableLDSTrA"] or state["enableLDSTrB"]) and (not state["1LDSBuffer"] and state["ExpandPointerSwap"]):
-    if (state["enableLDSTrA"] or state["enableLDSTrB"]) and not state["1LDSBuffer"]:
+    if (state["enableLDSTrA"] or state["enableLDSTrB"]) and (not state["1LDSBuffer"] and state["ExpandPointerSwap"]):
       reject(state, printRejectionReason, "Current LDSTrInst implementation does not support 1LDSBuffer=0")
       return
 
@@ -1867,9 +1867,13 @@ class Solution(collections.abc.Mapping):
           if isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
             if state["LocalReadVectorWidthA"] != maxLRVWA:
               reject(state, printRejectionReason, f"gfx1250 requires lrvwA == {maxLRVWA} for MacDataTypeA {state['ProblemType']['MacDataTypeA']}, actual value: {state['LocalReadVectorWidthA']}")
-          if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
-            if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] // 2:
-              reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"] // 2))
+          # TODO: Find better conditons to filter gfx1250 solutions
+          # if state["ProblemType"]["Sparse"] and state["MIInputPerThread"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
+          #   if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] // 2:
+          #     reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"] // 2))
+          # gfx1250
+          if state["ProblemType"]["Sparse"] and state["LocalReadVectorWidthA"] * state["ProblemType"]["MacDataTypeA"].numBytes() > Solution.MAX_NUM_DS_LOAD_BYTES:
+            reject(state, printRejectionReason, "LocalReadVectorWidthA * BytePerMacDataTypeA(%s) > %d bytes." % (state["ProblemType"]["MacDataTypeA"].numBytes(), Solution.MAX_NUM_DS_LOAD_BYTES))
           elif not state["ProblemType"]["Sparse"] and not(state["ProblemType"]["MacDataTypeA"].is8bitFloat() and (state["MatrixInstK"] in [64, 128,])):
             if state["LocalReadVectorWidthA"] < state["MIInputPerThread"] and not state["LDSTrInst"] and not isaInfoMap[isa].asmCaps["HasWMMA_V3"]:
               reject(state, printRejectionReason, "LocalReadVectorWidthA < %u" %(state["MIInputPerThread"]))
@@ -2950,8 +2954,13 @@ class Solution(collections.abc.Mapping):
     state["LdsOffsetMetadata"] = state["LdsOffsetMXSB"] + state["LdsNumElementsAlignedMXSB"]
     state["LdsOffsetB"] = state["LdsOffsetMetadata"] + state["LdsNumElementsAlignedMetadata"]
     if state["PrefetchGlobalRead"]:
-      offsetBlk = state["LdsOffsetB"] +  ldsNumBytesAlignedB
-      if offsetBlk > 0:
+      offsetBlk = state["LdsOffsetB"] + ldsNumBytesAlignedB
+
+      state["StoreSwapAddr"] = (state["1LDSBuffer"] != 1) and \
+        (offsetBlk + int(2**(math.ceil(math.log(offsetBlk, 2)))) > state["MaxLDS"])
+
+      if offsetBlk > 0 and not state["StoreSwapAddr"]:
+        # Rounds offsetBlk to a power of two to enable inlining {s,v}_xor constants for swapping offsets
         offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
@@ -2960,22 +2969,6 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetMetadata_Blk"] = state["LdsOffsetMXSB_Blk"] + state["LdsNumElementsAlignedMXSB"]
       state["LdsOffsetB_Blk"] = state["LdsOffsetMetadata_Blk"] + state["LdsNumElementsAlignedMetadata"]
       ldsNumBytesAB = state["LdsOffsetB_Blk"] + ldsNumBytesB
-      state["LdsAlignPow2"] = True
-      # For LDS size != pow(2)
-      if state["MaxLDS"] & (state["MaxLDS"]-1) != 0 and ldsNumBytesAB > state["MaxLDS"]:
-        state["LdsAlignPow2"] = False
-        # AA(MX)(MX)MMBB layout
-        state["LdsOffsetA"] = 0
-        state["LdsOffsetA_Blk"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
-        state["LdsOffsetMXSA"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
-        state["LdsOffsetMXSA_Blk"] = state["LdsOffsetMXSA"] + state["LdsNumElementsAlignedMXSA"]
-        state["LdsOffsetMXSB"] = state["LdsOffsetMXSA_Blk"] + state["LdsNumElementsAlignedMXSA"]
-        state["LdsOffsetMXSB_Blk"] = state["LdsOffsetMXSB"] + state["LdsNumElementsAlignedMXSB"]
-        state["LdsOffsetMetadata"] = state["LdsOffsetMXSB_Blk"] + state["LdsNumElementsAlignedMXSB"]
-        state["LdsOffsetMetadata_Blk"] = state["LdsOffsetMetadata"] + state["LdsNumElementsAlignedMetadata"]
-        state["LdsOffsetB"] = state["LdsOffsetMetadata_Blk"] + state["LdsNumElementsAlignedMetadata"]
-        state["LdsOffsetB_Blk"] = state["LdsOffsetB"] + state["LdsNumElementsAlignedB"]
-        ldsNumBytesAB = state["LdsOffsetB_Blk"] + ldsNumBytesB
     else:
       ldsNumBytesAB = state["LdsOffsetB"] + ldsNumBytesB
 
@@ -2987,7 +2980,6 @@ class Solution(collections.abc.Mapping):
       state["LocalSplitUReuseLDS"] = math.ceil(ldsNumBytesReduction / state["MaxLDS"])
       # reserve all the LDS to LSU.
       ldsNumBytesReduction = state["MaxLDS"]
-      state["ldsAlignPow2"] = False
 
     # lds max occupancy
     ldsSizeOccupancy = isaInfoMap[isa].archCaps["DeviceLDS"] // state["MaxOccupancy"]
@@ -3018,13 +3010,13 @@ class Solution(collections.abc.Mapping):
       # Should be able to support as long as NO scheduleLocalWrite
       if (not state["ScheduleIterAlg"] == 2) and (not state["ScheduleIterAlg"] == 3) and (state["ScheduleLocalWrite"]):
         reject(state, printRejectionReason, "1LDSBuffer only support SIA2 or SIA3, or SIA1 without SLW")
-      state["LdsAlignPow2"] = False
       state["LdsOffsetA"] = 0
       state["LdsOffsetMXSA"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
       state["LdsOffsetB"] = state["LdsOffsetMXSA"] + state["LdsNumElementsAlignedMXSA"]
       state["LdsOffsetMXSB"] = state["LdsOffsetB"] + state["LdsNumElementsAlignedB"]
       state["LdsOffsetMetadata"] = state["LdsOffsetMXSB"] + state["LdsNumElementsAlignedMXSB"]
       ldsNumBytesAB = state["LdsOffsetMetadata"] + ldsNumBytesMetadata
+      state["StoreSwapAddr"] = False
 
     # lds size is the greater of the two
     ldsNumBytes = max(ldsNumBytesAB, ldsNumBytesReduction, ldsNumBytesOccupancy)
@@ -3109,8 +3101,8 @@ class Solution(collections.abc.Mapping):
       if state["PrefetchGlobalRead"] and not state["ExpandPointerSwap"]:
         reject(state, printRejectionReason, "Sparse A kernel only support PGR with EPS=1.")
         return
-      if state["EnableMatrixInstruction"] and state["MIArchVgpr"]:
-        reject(state, printRejectionReason, "Sparse A kernel does not support MIArchVgpr yet.")
+      if not isaInfoMap[isa].asmCaps["HasSWMMAC"] and state["EnableMatrixInstruction"] and state["MIArchVgpr"]:
+        reject(state, printRejectionReason, "Current ISA does not support MIArchVgpr in Sparse kernels.")
         return
       # Not Support Feature
       if state["ProblemType"]["Sparse"] == 1 and state["SourceSwap"] :

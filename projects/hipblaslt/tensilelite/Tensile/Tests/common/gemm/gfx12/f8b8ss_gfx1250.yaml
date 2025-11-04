@@ -25,6 +25,7 @@ GlobalParameters:
   Architecture: gfx1250
   CpuThreads: 1
   KeepBuildTmp: True
+  ROCmAgentEnumeratorPath: rocm_agent_enumerator
   PrintLevel: 2
   UseGPUTimer: False
 
