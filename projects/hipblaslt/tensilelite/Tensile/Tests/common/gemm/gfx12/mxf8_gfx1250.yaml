@@ -28,6 +28,7 @@ GlobalParameters:
   KeepBuildTmp: True
   PrintLevel: 2
   UseGPUTimer: False
+  ROCmAgentEnumeratorPath: rocm_agent_enumerator
   MaxLDS: 163840
   DeviceLDS: 163840
 
