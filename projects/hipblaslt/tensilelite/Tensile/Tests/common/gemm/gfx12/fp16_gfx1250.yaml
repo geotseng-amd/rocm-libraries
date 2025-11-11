@@ -50,8 +50,8 @@ BenchmarkProblems:
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  1, 1]
         - DepthU: [32]
-        - TransposeLDS: [-1, 1]
-        - LDSTrInst: [True, False]
+        - TransposeLDS: [1]
+        - LDSTrInst: [True]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
         - LdsPadMetadata: [0]
@@ -60,20 +60,18 @@ BenchmarkProblems:
         - PrefetchLocalRead: [0]
         - PrefetchGlobalRead: [2]
         - StoreRemapVectorWidth: [0]
-        - GlobalSplitU: [1,2,3]
+        - GlobalSplitU: [1,3]
         - GlobalSplitUAlgorithm: [MultipleBuffer]
         - GlobalReadVectorWidthA: [-1]
         - GlobalReadVectorWidthB: [-1]
-        - 1LDSBuffer: [-1, 1]
+        - 1LDSBuffer: [-1]
         - VectorWidthA: [1, 2]
-        - SourceSwap: [0, 1]
+        - SourceSwap: [1]
         - DirectToVgprSparseMetadata: [0]
         - WorkGroupMapping: [1]
         - StoreVectorWidth: [-1]
         - DirectToVgprA: [False]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -84,7 +82,6 @@ BenchmarkProblems:
           - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','h']
         - ActivationArgs:
-          - [Enum: none]
           - [Enum: relu]
 
   #######################################
@@ -118,10 +115,9 @@ BenchmarkProblems:
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  1, 1]
-
         - DepthU: [32]
         - TransposeLDS: [-1]
-        - LDSTrInst: [True, False]
+        - LDSTrInst: [False]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
         - LdsPadMetadata: [0]
@@ -134,7 +130,7 @@ BenchmarkProblems:
         - GlobalSplitUAlgorithm: [MultipleBuffer]
         - GlobalReadVectorWidthA: [-1]
         - GlobalReadVectorWidthB: [-1]
-        - 1LDSBuffer: [-1, 1]
+        - 1LDSBuffer: [-1]
         - DirectToVgprSparseMetadata: [0]
         - WorkGroupMapping: [1]
         - StoreVectorWidth: [-1]
@@ -152,7 +148,6 @@ BenchmarkProblems:
           - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','h']
         - ActivationArgs:
-          - [Enum: none]
           - [Enum: relu]
 
   #######################################
@@ -186,7 +181,6 @@ BenchmarkProblems:
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  1, 1]
-
         - DepthU: [32]
         - TransposeLDS: [-1]
         - LDSTrInst: [True, False]
@@ -202,15 +196,12 @@ BenchmarkProblems:
         - GlobalSplitUAlgorithm: [MultipleBuffer]
         - GlobalReadVectorWidthA: [-1]
         - GlobalReadVectorWidthB: [-1]
-        - 1LDSBuffer: [-1, 1]
+        - 1LDSBuffer: [-1]
         - DirectToVgprSparseMetadata: [0]
         - WorkGroupMapping: [1]
         - StoreVectorWidth: [-1]
         - DirectToVgprA: [False]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
-        # - AssertSummationElementMultiple: [32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -221,7 +212,6 @@ BenchmarkProblems:
           - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','h']
         - ActivationArgs:
-          - [Enum: none]
           - [Enum: relu]
 
   #######################################
@@ -244,7 +234,6 @@ BenchmarkProblems:
       UseScaleAlphaVec: 1
       BiasDataTypeList: ['s', 'h']
       ActivationType:  hipblaslt_all
-
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -255,7 +244,6 @@ BenchmarkProblems:
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  2, 1 ]
           - [16, 16, 32, 1,  1,  1, 1,  1, 1]
-
         - DepthU: [32]
         - TransposeLDS: [-1]
         - LDSTrInst: [True, False]
@@ -271,14 +259,12 @@ BenchmarkProblems:
         - GlobalSplitUAlgorithm: [MultipleBuffer]
         - GlobalReadVectorWidthA: [-1]
         - GlobalReadVectorWidthB: [-1]
-        - 1LDSBuffer: [-1, 1]
+        - 1LDSBuffer: [-1]
         - DirectToVgprSparseMetadata: [0]
         - WorkGroupMapping: [1]
         - StoreVectorWidth: [-1]
         - DirectToVgprA: [False]
         - WavefrontSize: [32]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -289,5 +275,4 @@ BenchmarkProblems:
           - Exact: [129, 129, 1, 129]
         - BiasTypeArgs: ['s','h']
         - ActivationArgs:
-          - [Enum: none]
           - [Enum: relu]
