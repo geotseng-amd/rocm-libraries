@@ -226,8 +226,8 @@ namespace rocisa
             std::string negStr
                 = !neg ? "" : (getAsmCaps()["HasWMMA_V1"] ? " neg_lo:[1,1,1]" : " neg_lo:[1,1]");
             // Conditions for reuseA(B)Str setting
-            std::string reuseAStr       = typeConvert(instType)=="f8f6f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseA ? "" : " matrix_a_reuse");
-            std::string reuseBStr       = typeConvert(instType)=="f8f6f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseB ? "" : " matrix_b_reuse");
+            std::string reuseAStr       = typeConvert(instType) == "f8f6f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseA ? "" : " matrix_a_reuse");
+            std::string reuseBStr       = typeConvert(instType) == "f8f6f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseB ? "" : " matrix_b_reuse");
             std::string inputPermuteStr = "";
             if(getAsmCaps()["HasMFMA_f8f6f4"])
             {
@@ -452,8 +452,8 @@ namespace rocisa
         {
             constexpr size_t f4_t = 32;
             // Conditions for reuseA(B)Str setting
-            std::string reuseAStr       = typeConvert(instType)=="f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseA ? "" : " matrix_a_reuse");
-            std::string reuseBStr       = typeConvert(instType)=="f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseB ? "" : " matrix_b_reuse");
+            std::string reuseAStr       = typeConvert(instType) == "f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseA ? "" : " matrix_a_reuse");
+            std::string reuseBStr       = typeConvert(instType) == "f4" || !getAsmCaps()["HasWMMA_V3"]? "": (!reuseB ? "" : " matrix_b_reuse");
             std::string inputPermuteStr = "";
             switch(instType)
             {
