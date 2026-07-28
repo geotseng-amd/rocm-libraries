@@ -59,7 +59,7 @@ from .Common import printWarning, roundUp, print2, DebugConfig, DataDirection, \
 from .Common.GlobalParameters import globalParameters
 from .Common.ValidParameters import resolveSwInstructionPrefetch, \
   SW_INSTRUCTION_PREFETCH_AUTO
-from Tensile.SolutionStructs.Naming import getKernelNameMin
+from Tensile.SolutionStructs.Naming import getKernelNameMin, getKernelFileBase
 from Tensile.Toolchain.Component import Assembler
 
 import rocisa
@@ -6748,10 +6748,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # Returns a KernelBody wrapper that includes signature and instruction module
       # - runOptimizationPipeline() optimizes the instruction body
       # - emitAssembly() outputs complete kernel: signature + optimized instructions
+      # Use full kernel name (same as .s/.o basename) so cost file matches: <full_name>_aggregated_instruction_cost.txt
+      fullKernelName = getKernelFileBase(self.debugConfig.splitGSU, kernel)
       t1a_start = time.perf_counter()
-      stModule = rocisa.toStinkyTofuModule(moduleKernelBody.body, self.states.version, "kernel_name",
+      stModule = rocisa.toStinkyTofuModule(moduleKernelBody.body, self.states.version, fullKernelName,
                                            signature=fs,
                                            options=stinky_module_options)
+      stModule.setOutputName(fullKernelName)
+      costOutputDir = globalParameters.get("StinkyTofuCostOutputDir", "")
+      if costOutputDir:
+        stModule.setOutputDir(costOutputDir)
       t1a_end = time.perf_counter()
       print2(f"StinkyTofu (1a) toStinkyTofuModule: {t1a_end - t1a_start:.4f}s")
 

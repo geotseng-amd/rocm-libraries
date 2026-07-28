@@ -211,6 +211,77 @@ def _verify_stinky_asm_comment_vs_elf_text(s_path: Path, o_path: Path, kernel_ba
             )
 
 
+def _wmma_reuse_verify_wanted(isa: IsaVersion) -> bool:
+    """Return True if the WMMA ``matrix_b_reuse`` asm check should run for this kernel.
+
+    Requires ``CheckWMMAReuse`` and gfx1250. A ``v_wmma*`` carrying the ``matrix_b_reuse``
+    modifier promises the next ``v_wmma*`` reuses the same B (second source) operand.
+    """
+    return bool(globalParameters["CheckWMMAReuse"]) and isaToGfx(isa) == "gfx1250"
+
+
+def _wmma_b_operand(line: str) -> Optional[str]:
+    """Return the B (third) operand of a ``v_wmma*`` instruction, or None if not a WMMA line.
+
+    WMMA operands are ``DST, A, B, C`` followed by optional space-separated modifiers
+    (e.g. ``matrix_b_reuse``). B is the third comma-separated operand; any trailing modifier
+    is stripped.
+    """
+    stripped = line.strip()
+    if "v_wmma" not in stripped:
+        return None
+    split = stripped.split(None, 1)
+    if len(split) < 2:
+        return None
+    parts = split[1].split(",")
+    if len(parts) < 3:
+        return None
+    b = parts[2].strip().split()
+    return b[0] if b else None
+
+
+def _verify_wmma_reuse_asm(s_path: Path, kernel_base: str) -> None:
+    """Verify ``matrix_b_reuse`` promises in an emitted kernel ``.s``.
+
+    Call only when ``_wmma_reuse_verify_wanted(isa)`` is True. For every ``v_wmma*`` that
+    carries ``matrix_b_reuse``, the next ``v_wmma*`` must reuse the same B operand. Forwards
+    messages through ``_stinky_out`` and exits via ``printExit`` on the first violation.
+
+    Args:
+        s_path: Path to the generated ``.s`` file.
+        kernel_base: Short name for messages (usually the asm stem).
+    """
+    _stinky_out(f"CheckWMMAReuse: running verify for {kernel_base}")
+    try:
+        lines = Path(s_path).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as ex:
+        printExit(f"CheckWMMAReuse: could not read asm for {kernel_base}: {ex}")
+        return
+    # (1-based line number, B operand) for every WMMA instruction, in source order.
+    wmma: List[tuple] = []
+    for i, ln in enumerate(lines):
+        b = _wmma_b_operand(ln)
+        if b is not None:
+            wmma.append((i + 1, b))
+    for idx, (lineno, b_op) in enumerate(wmma):
+        if "matrix_b_reuse" not in lines[lineno - 1]:
+            continue
+        if idx + 1 >= len(wmma):
+            # matrix_b_reuse with no following WMMA to reuse B: nothing to compare.
+            continue
+        next_lineno, next_b = wmma[idx + 1]
+        if next_b != b_op:
+            _stinky_out(
+                f"CheckWMMAReuse: matrix_b_reuse mismatch in {kernel_base}: "
+                f"cause line {lineno} B={b_op}, next  L{next_lineno} B={next_b}"
+            )
+            printExit(
+                f"CheckWMMAReuse: matrix_b_reuse promise violated for {kernel_base} "
+                f"(cause line {lineno} declares matrix_b_reuse, next  L{next_lineno} uses B={next_b} != {b_op})"
+            )
+    _stinky_out(f"CheckWMMAReuse: OK matrix_b_reuse for {kernel_base}")
+
+
 def memCompress(obj):
     return zlib.compress(pickle.dumps(obj))
 

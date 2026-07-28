@@ -1,0 +1,45 @@
+---
+description: Max-quality agent loop — strongest model, 5 parallel reviewers, verify every task
+alwaysApply: true
+---
+
+# Max-Quality Loop
+
+Default working mode for this repo. Prioritize correctness over speed/token cost.
+
+## Skills first (every request)
+
+At the start of **every** user message, before responding or acting, check whether
+any available skill applies — if there's even a 1% chance, invoke it via the Skill
+tool. Process skills (brainstorming, debugging) come before implementation skills.
+Never skip this, even for "simple" questions. Announce which skill is being used.
+
+## Model policy
+
+Use the **strongest available model** for every role: planning, implementation,
+each reviewer, and synthesis. Do not downgrade to cheaper models to save tokens.
+
+## Per-task loop
+
+For any non-trivial change, run this loop **one task at a time**:
+
+1. **Plan** — break work into bite-sized tasks (`writing-plans` skill). Each task is self-contained and independently verifiable.
+2. **Implement** — TDD (`test-driven-development`): failing test first, watch it fail, minimal code to pass. Implementation stays sequential (never parallel on shared code).
+3. **Verify** — run the real test/build command and capture fresh output. Iron law (`verification-before-completion`): **no "done" claim without fresh verification evidence**. On failure, fix and re-verify.
+4. **Review panel (parallel, read-only)** — after verification passes, dispatch **5 orthogonal reviewers concurrently**:
+   | Reviewer | Focus | Subagent |
+   |----------|-------|----------|
+   | Spec compliance | requirements met, nothing extra/missing | `code-reviewer` |
+   | Code quality | architecture, readability, edge cases | `code-reviewer` |
+   | Security | vulnerabilities in the diff | `security-review` |
+   | Bug risk | regressions, logic bugs | `bugbot` |
+   | Tests | tests actually cover the behavior | `code-reviewer` |
+5. **Synthesize** — main agent merges reviews: dedupe overlap, rank Critical / Important / Minor, push fixes back to implementer, then **re-review until clean**. Push back on wrong feedback with technical reasoning.
+6. **Advance** — only mark a task done when verification passes AND the panel is clean. Then start the next task.
+
+## Hard gates (never skip)
+
+- No production code before a failing test.
+- No completion/success claim without fresh command output as evidence.
+- No moving to the next task with open Critical/Important review issues.
+- Reviewers are read-only and parallel; implementation is single-writer and sequential.

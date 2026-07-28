@@ -119,7 +119,7 @@ globalParameters["ExitOnFails"] = (
     1  # 1: Exit after benchmark run if failures detected.  2: Exit during benchmark run.
 )
 globalParameters["CpuThreads"] = (
-    -1
+    1
 )  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?  0 does not check error codes correctly
 # If True: after each kernel is assembled, verify that StinkyTofu's total instruction encoding
 # size (sum of each instruction's encoded byte length from the Stinky pass pipeline) matches the
@@ -137,6 +137,10 @@ globalParameters["CpuThreads"] = (
 # Testing: ``tox`` turns on ``CheckASMCodeSize=True`` for the default Tensile pytest runs (see
 # ``tox.ini``), so gfx1250 kernels built during those tests are verified automatically.
 globalParameters["CheckASMCodeSize"] = False
+# CheckWMMAReuse: verify WMMA ``matrix_b_reuse`` promises in emitted asm. A ``v_wmma*`` carrying
+# ``matrix_b_reuse`` asserts the next ``v_wmma*`` reuses the same B (second source) operand; when
+# True (gfx1250 only) a violated promise fails the build. Off by default; enabled in test/debug.
+globalParameters["CheckWMMAReuse"] = True
 globalParameters["NumWarmups"] = 0
 globalParameters["TimingInstrumentation"] = False  # Enable detailed timing instrumentation output
 globalParameters["ParallelGpuExecution"] = 1  # Number of GPUs for parallel client execution (0=auto-detect, 1=serial, N=use N GPUs)
@@ -227,7 +231,7 @@ globalParameters["CMakeCXXFlags"] = ""  # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""  # pass flags to cmake
 globalParameters["AsanBuild"] = False  # build with asan
 #globalParameters["SaveTemps"] = False  # Generate intermediate results of hip kernels
-globalParameters["KeepBuildTmp"] = False  # If true, do not remove artifacts in build_tmp
+globalParameters["KeepBuildTmp"] = True  # If true, do not remove artifacts in build_tmp
 
 # debug for assembly
 #globalParameters["SplitGSU"] = False  # Split GSU kernel into GSU1 and GSUM
@@ -366,7 +370,7 @@ globalParameters["RocProfCounter"] = None # No rocprof counter
 #    <groupName>-{before,after}_passes.txt        (single-region adapter)
 #    <group1>+<group2>-{before,after}_passes.txt  (multi-region adapter)
 #    wholeKernel-{before,after}_passes.txt        (whole-kernel adapter)
-globalParameters["StinkyTofuDebugLevel"] = 0
+globalParameters["StinkyTofuDebugLevel"] = 1
 
 # StinkyTofu selective pass IR dump (applies per-PM, same file naming as DebugLevel 2)
 # Comma-separated pass names to print IR before/after (case-sensitive)
