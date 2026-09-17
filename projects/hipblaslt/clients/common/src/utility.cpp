@@ -382,6 +382,18 @@ void hipblaslt_print_version()
     hipblaslt_cout << "hipBLASLt git version: " << git_version << std::endl;
 }
 
+void hipblaslt_default_gfx12_strict_env()
+{
+    // Which gfx1250 stepping ROCr reports on revision-0 silicon. Unset means the
+    // base one as of ROCm 10.2, so a bare ./hipblaslt-test would test the other
+    // stepping than the one it was built and tuned for, and pass while doing it.
+    // A default rather than an override: a base-stepping run passes 1, and ROCr
+    // reads the variable at hsa_init(), so this only counts before HIP is
+    // touched -- hence the call sites at the top of main().
+    if(!getenv("HSA_DISABLE_GFX12_STRICT"))
+        portable_setenv("HSA_DISABLE_GFX12_STRICT", "0");
+}
+
 /* ==================================================================== */
 /*! \brief write a matrix to file. */
 template <typename T>

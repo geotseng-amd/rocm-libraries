@@ -205,6 +205,27 @@ void set_device(int64_t device_id)
     }
 }
 
+static void portable_setenv(const char* name, const char* value)
+{
+#ifdef WIN32
+    _putenv_s(name, value);
+#else
+    setenv(name, value, /*overwrite=*/true);
+#endif
+}
+
+void hipsparselt_default_gfx12_strict_env()
+{
+    // Which gfx1250 stepping ROCr reports on revision-0 silicon. Unset means the
+    // base one as of ROCm 10.2, and the device libraries of the two steppings are
+    // not interchangeable, so a bare ./hipsparselt-test would look for the other
+    // stepping's library. A default rather than an override: a base-stepping run
+    // passes 1, and ROCr reads the variable at hsa_init(), so this only counts
+    // before HIP is touched -- hence the call sites at the top of main().
+    if(!getenv("HSA_DISABLE_GFX12_STRICT"))
+        portable_setenv("HSA_DISABLE_GFX12_STRICT", "0");
+}
+
 /*****************
  * local handles *
  *****************/

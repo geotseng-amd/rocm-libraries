@@ -537,6 +537,9 @@ int32_t            hipblaslt_get_arch();
 int32_t            hipblaslt_get_arch_major();
 void hipblaslt_print_version();
 
+// Call from the top of main(), before anything touches HIP.
+void hipblaslt_default_gfx12_strict_env();
+
 /* ==================================================================== */
 /*! \brief write a matrix to file. */
 void hipblasltDispatchValuesToFile(hipblasOperation_t transA, hipDataType TiA,

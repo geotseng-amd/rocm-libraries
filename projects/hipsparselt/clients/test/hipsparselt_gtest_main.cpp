@@ -230,6 +230,9 @@ static void hipsparselt_set_test_device()
  *****************/
 int main(int argc, char** argv)
 {
+    // ROCr reads this at hsa_init(), so it has to come before any HIP call.
+    hipsparselt_default_gfx12_strict_env();
+
     std::string args = hipsparselt_capture_args(argc, argv);
 
     // Set signal handler

@@ -397,6 +397,11 @@ std::string hipsparselt_tempname();
 const char* read_env_var(const char* env_var);
 
 /* ============================================================================================ */
+/* Default the gfx1250 stepping selection. Call from the top of main(), before
+   anything touches HIP. */
+void hipsparselt_default_gfx12_strict_env();
+
+/* ============================================================================================ */
 /* Compute strided batched matrix allocation size allowing for strides smaller than full matrix */
 size_t strided_batched_matrix_size(int rows, int cols, int lda, int64_t stride, int batch_count);
 

@@ -300,6 +300,9 @@ void fix_batch(int argc, char* argv[])
 int main(int argc, char* argv[])
 try
 {
+    // ROCr reads this at hsa_init(), so it has to come before any HIP call.
+    hipsparselt_default_gfx12_strict_env();
+
     fix_batch(argc, argv);
     Arguments   arg;
     std::string function;

@@ -251,6 +251,9 @@ static void hipblaslt_set_test_device()
  *****************/
 int main(int argc, char** argv)
 {
+    // ROCr reads this at hsa_init(), so it has to come before any HIP call.
+    hipblaslt_default_gfx12_strict_env();
+
     std::string args = hipblaslt_capture_args(argc, argv);
 
     hipblaslt_gtest_check_host_side_fill_kernel_flags(argc, argv);
