@@ -34,15 +34,17 @@
 #     aggregates across all cx*cy.
 #   - StridedBatched: a batch dim (index 2) maps to WorkGroup2, and
 #     calculateStartAddr folds WorkGroup2 * Stride{tc}K into the base address.
-#     Batched configs launch a 3D [cx, cy, num_batches] grid (wg_z from
+#     Batched configs launch a 3D [cx, cy, num_batches * GSU groups] grid (wg_z from
 #     ttmp7[31:16]); each batch b is verified against its footprint shifted by
 #     b * Stride{tc}K * bpe.
 #   - SupportUserArgs: under ArgType == 3 (general batch; bits 8+ carry a TDM wave
 #     id the compare must mask) Address{A,B} is a pointer array and the base is
-#     Address{tc}[WorkGroup2] + batchOffset{tc}. The entries are only computed
-#     with, so each batch is checked against the footprint shifted by its own
-#     entry + batchOffset{tc}, chosen to carry into the high word. K == 0 skips
-#     the dereference; MX scales keep the strided base.
+#     Address{tc}[WorkGroup2] + batchOffset{tc}. The entries are only used in
+#     address arithmetic, never dereferenced, so each batch is checked against the
+#     footprint shifted by its own entry + batchOffset{tc}, chosen to carry into
+#     the high word. K == 0 skips the dereference; MX scales keep the strided
+#     base. Under GSU the chunk offset must land on top of the resolved base,
+#     so pointer-array configs also run with GSU.
 #   - Address increment (PGL=2): the start address skips the PGR iterations the
 #     regular loads already fetched via skipPGR, guarded like production by
 #     LoopCounterL > PGR (with fewer iterations there is nothing to prefetch, so
@@ -185,7 +187,7 @@ class GL2Config:
     batched: bool = False     # StridedBatched: add a batch dim (index 2 -> wg_z).
                               # calculateStartAddr then folds WorkGroup2 * Stride{tc}K
                               # into the base address (the batch-offset path).
-    num_batches: int = 1      # batch extent (grid z). Each batch b shifts the whole
+    num_batches: int = 1      # batch extent (grid z, times the GSU groups). Each batch b shifts the whole
                               # footprint by b * Stride{tc}K * bpe.
     sparse: int = 0           # 0 = dense; 1 = A is the 2:4-compressed sparse operand;
                               # 2 = B is. Halves _DepthU{A,B} for that data tensor
@@ -199,7 +201,7 @@ class GL2Config:
                               # single group. Production splits the y axis to derive
                               # the group index; this harness feeds it from z instead
                               # (see build_kernel for why that is equivalent here), so
-                              # a GSU config cannot also be batched.
+                              # a batched GSU config packs z as batch * gsu + group.
     gsuc: bool = False        # GlobalSplitUCoalesced: False = interleaved chunks
                               # (group g starts at iteration g, steps G at a time),
                               # True = contiguous chunks (group g starts after the
@@ -239,7 +241,7 @@ class GL2Config:
 
     @property
     def grid_z(self):
-        # batches and GSU groups share the z axis; a config uses at most one.
+        # batches and GSU groups share the z axis: wg_z = batch * n_groups + group
         return self.num_batches * self.n_groups
 
     @property
@@ -347,8 +349,8 @@ def _M(side, tlu, mt):    return TensorSpec("Metadata", tlu, mt, 1, is_m=True, s
 # gl2PrefetchCalcAddr on kernel["PrefetchGL2"] only, not ClusterDim). The
 # cooperative fan-out only kicks in for a real cluster, so the layout/sparse/edge
 # configs run ClusterDim != [1,1] to exercise it. The degenerate path has its own
-# [1,1] case, and the GSU block runs entirely at [1,1] (see there for why GSU is
-# not paired with a cluster).
+# [1,1] case. The plain GSU block runs at [1,1] and GSU is paired with a cluster
+# only for the GSUWGMRR=1 launch (see the mapping note in the GSU block).
 # ClusterDim = [cx, cy]: A/MXSA cooperate along cy and span cx macro-tiles; B/MXSB are the mirror. Shapes
 # include power-of-2 and non-POT MacroTile / cluster extents
 # (scalarStaticRemainder, ceil(gl2nl), ncc divide).
@@ -560,6 +562,24 @@ CONFIGS = [
     # zeroed base buffer stands in for them, so a missed skip mismatches instead of faulting.
     GL2Config("userargs_ptr_k0", [_A(False, 256), _B(True, 256)], cluster=(2, 2),
               batched=True, num_batches=2, user_args=True, arg_type=3, sizes_sum_zero=True),
+    # UserArgs + GSU, on a cluster like the GSU x cluster block (the GSUWGMRR=1
+    # launch). A strided launch must take the chunk offset too, not only the
+    # pointer-array path:
+    GL2Config("userargs_strided_gsu4", [_A(True, 256), _B(False, 256)],
+              cluster=(2, 2), batched=True, num_batches=3, user_args=True, arg_type=0x300,
+              gsu=4, k_iters=10),
+    # Pointer array + GSU: the resolve overwrites the base, so the GSU chunk offset
+    # has to be added after it. Group 0 starts at iteration 0, so only the other
+    # groups catch a chunk offset applied before the resolve. Interleaved chunks
+    # with three batches over four groups:
+    GL2Config("userargs_ptr_array_gsu4_interleaved", [_A(True, 256), _B(False, 256)],
+              cluster=(2, 2), batched=True, num_batches=3, user_args=True, arg_type=0x303,
+              gsu=4, k_iters=10),
+    # Contiguous chunks with an uneven split (7 = 2*3 + 1), next to MX scales,
+    # which keep the strided base and take the chunk offset on top of it.
+    GL2Config("userargs_ptr_array_gsu2_mx", [_A(True, 192), _B(True, 192), _MXSA(192), _MXSB(192)],
+              depth_u=256, mx_block=32, cluster=(2, 2), batched=True, num_batches=2,
+              user_args=True, arg_type=3, gsu=2, gsuc=True, k_iters=7),
 ]
 
 
@@ -584,8 +604,8 @@ def ptr_array_tcs(cfg):
 
 
 def ptr_array_entry(tc, batch):
-    """Address{tc}[batch]: only computed with, never dereferenced. Just below a 4 GiB
-    boundary so adding batchOffset{tc} carries into the high word."""
+    """Address{tc}[batch]: only used in address arithmetic, never dereferenced. Just
+    below a 4 GiB boundary so adding batchOffset{tc} carries into the high word."""
     lo = {"A": 0xFF00_0000, "B": 0xFE80_0000}[tc] + batch * 0x0010_0000
     return (0x7F12 << 32) | lo
 
@@ -718,10 +738,10 @@ def build_kernel(cfg):
 
     if cfg.gsu_on:
         # The GSU group index rides the grid z axis, which the batch index also
-        # uses. Not a limitation worth engineering around: the batch offset and the
-        # GSU chunk offset are added to the same base accumulator, so they compose
-        # additively and batching is already covered on its own.
-        assert not cfg.batched, f"{cfg.name}: a GSU config cannot also be batched"
+        # uses, so a batched config packs z as batch * n_groups + group and the
+        # prologue splits it with a mask and a shift.
+        assert not cfg.batched or cfg.n_groups & (cfg.n_groups - 1) == 0, \
+            f"{cfg.name}: a batched GSU config needs a power-of-2 group count, got {cfg.n_groups}"
         # calculateLoopNumIterOffsetGsu's divide resets exec to all lanes, which is
         # only correct when every wave is full -- as it always is in production.
         assert cfg.num_threads % WAVESIZE == 0, \
@@ -750,10 +770,12 @@ def build_kernel(cfg):
         # contiguous branch.
         shared += ["GSU", "SizesSum"]
     if cfg.user_args:
-        assert cfg.batched and not cfg.gsu_on, f"{cfg.name}: SupportUserArgs needs a batched, non-GSU config"
+        assert cfg.batched, f"{cfg.name}: SupportUserArgs needs a batched config"
+        assert not (cfg.gsu_on and cfg.sizes_sum_zero), \
+            f"{cfg.name}: GSU programs SizesSum from k_iters, so it cannot also be zeroed"
         # ArgType selects the general batch, SizesSum gates it on K, and
         # batchOffset{tc} is read through KernArgAddress (s[0:1])
-        shared += ["ArgType", "SizesSum"]
+        shared += ["ArgType"] + ([] if cfg.gsu_on else ["SizesSum"])
         w.sgprs["KernArgAddress"] = 0
     for n in shared:
         w.sgprs[n] = w.sgprPool.checkOut(1, n, preventOverflow=False)
@@ -869,8 +891,9 @@ def build_kernel(cfg):
         consts += [("GSU", cfg.n_groups | (0x8000 if cfg.gsuc else 0)),
                    ("SizesSum", cfg.k_iters * cfg.depth_u)]
     if cfg.user_args:
-        consts += [("ArgType", cfg.arg_type),
-                   ("SizesSum", 0 if cfg.sizes_sum_zero else cfg.k_iters * cfg.depth_u)]
+        consts += [("ArgType", cfg.arg_type)]
+        if not cfg.gsu_on:
+            consts += [("SizesSum", 0 if cfg.sizes_sum_zero else cfg.k_iters * cfg.depth_u)]
     for n, v in consts:
         prologue.add(SMovB32(dst=sgpr(n), src=v))
 
@@ -894,19 +917,25 @@ def build_kernel(cfg):
         # Driving the group index off z instead enumerates exactly the same
         # (WorkGroup0, WorkGroup1, GSUSumIdx) tuples, without reimplementing the
         # divide in the harness and without tying the group index to the tile index.
-        # WorkGroup2 holds the raw wg_z and is otherwise unused here (a GSU config is
-        # never batched, so no Stride{tc}K is programmed).
+        # WorkGroup2 holds the raw wg_z here; a batched config splits it into the
+        # batch and the group after WGOUT has consumed it below.
         prologue.add(SMovB32(dst=sgpr("GSUSumIdx"), src=sgpr("WorkGroup2")))
     if cfg.n_regions > 1:
-        # WGOUT = (wg_z*cy + wg_y)*cx + wg_x, then * n_out_per_wg. WorkGroup2 is 0
-        # when not batched and WorkGroup0/1 are 0 without a cluster, so this one
-        # chain covers cluster-only, batch-only, and combined launches.
+        # WGOUT = (wg_z*cy + wg_y)*cx + wg_x, then * n_out_per_wg. WorkGroup2 still
+        # holds the raw wg_z (0 for a single-z launch) and WorkGroup0/1 are 0
+        # without a cluster, so this one chain covers every launch shape.
         wgout = w.sgprs["WGOUT"]
         prologue.add(TextBlock("  s_mul_i32 s%d, s%d, %d\n" % (wgout, w.sgprs["WorkGroup2"], cy)))
         prologue.add(TextBlock("  s_add_u32 s%d, s%d, s%d\n" % (wgout, wgout, w.sgprs["WorkGroup1"])))
         prologue.add(TextBlock("  s_mul_i32 s%d, s%d, %d\n" % (wgout, wgout, cx)))
         prologue.add(TextBlock("  s_add_u32 s%d, s%d, s%d\n" % (wgout, wgout, w.sgprs["WorkGroup0"])))
         prologue.add(TextBlock("  s_mul_i32 s%d, s%d, %d\n" % (wgout, wgout, n_out_per_wg)))
+    if cfg.gsu_on and cfg.batched:
+        # wg_z = batch * n_groups + group (the split run_config's divmod undoes)
+        prologue.add(TextBlock("  s_and_b32 s%d, s%d, %d\n"
+                               % (w.sgprs["GSUSumIdx"], w.sgprs["WorkGroup2"], cfg.n_groups - 1)))
+        prologue.add(TextBlock("  s_lshr_b32 s%d, s%d, %d\n"
+                               % (w.sgprs["WorkGroup2"], w.sgprs["WorkGroup2"], cfg.n_groups.bit_length() - 1)))
 
     # ---- epilogue: for each stage, export (addr - base) per tensor into its own
     # output region, then incrementAddr to advance to the next stage. ----
@@ -1216,11 +1245,11 @@ def run_config(cfg, tmp_dir, debug=False):
     assemble_kernel(asm, co_path, wavefront_size=None)
 
     base = np.zeros(64 * 1024 * 1024, dtype=np.uint8)   # valid base pointer (contents unused)
-    # Launch a real [cx, cy, num_batches] grid in one shot. Each wg self-identifies
+    # Launch a real [cx, cy, grid_z] grid in one shot. Each wg self-identifies
     # via ttmp and writes its offsets into region [lin*n_out, (lin+1)*n_out), with
-    # lin = wg_z*(cx*cy) + wg_y*cx + wg_x in [0, n_regions). The batch index is
-    # lin // (cx*cy); offsets are aggregated per (tensor, stage, batch) and each
-    # batch is checked against its own Stride{tc}K-shifted footprint.
+    # lin = wg_z*(cx*cy) + wg_y*cx + wg_x in [0, n_regions). wg_z = lin // (cx*cy)
+    # is batch * n_groups + group; offsets are aggregated per (tensor, stage, batch,
+    # group) and each is checked against its own shifted footprint.
     n_wg = cfg.n_wg
     n_groups = cfg.n_groups
     n_regions = cfg.n_regions
@@ -1237,8 +1266,8 @@ def run_config(cfg, tmp_dir, debug=False):
     # Aggregate each (tensor, stage, batch, GSU group)'s offsets across the
     # cooperative cluster wgs -- but *not* across GSU groups: those do not
     # cooperate, each owns a different K chunk and is checked against it. Batches
-    # and groups share the z axis and a config uses at most one, so divmod picks
-    # out whichever is active.
+    # and groups share the z axis as batch * n_groups + group, so divmod splits
+    # them back apart.
     per = {(t.tc, stage, b, g): []
            for t, _, stage, _ in layout
            for b in range(cfg.num_batches) for g in range(n_groups)}

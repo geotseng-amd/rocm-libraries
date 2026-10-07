@@ -303,7 +303,7 @@ class GL2PrefetchLoad(GL2Prefetch):
             mod.add(SMovB64(dst=sgpr(tmpSgprIdx0, 2), src=sgpr("Address%s"%tc, 2), comment="base address"))
             # strided batch offset
             if kernel["ProblemType"]["Batched"]:
-                assert kernel["ProblemType"]["StridedBatched"], "Currently GL2Prefetch does not support general batch"
+                assert kernel["ProblemType"]["StridedBatched"], "GL2Prefetch does not support StridedBatched=False"
                 for batchIdx in kernel["ProblemType"]["IndicesBatch"]:
                     # packed index check
                     if batchIdx in kernel["ProblemType"]["IndicesFree"] or batchIdx not in tp['ia']:
